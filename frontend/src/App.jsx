@@ -7,8 +7,6 @@ import {
   TrendingDown,
   Bell,
   Layers,
-  Sun,
-  Moon,
   SlidersHorizontal,
   Wrench,
   Menu,
@@ -16,7 +14,11 @@ import {
   Shield,
   Mic,
   Scale,
-  Lock
+  Lock,
+  Bot,
+  User,
+  Brain,
+  ShoppingBag
 } from 'lucide-react';
 import { API_BASE_URL } from './config';
 import ProductCard from './components/ProductCard';
@@ -24,38 +26,62 @@ import ChatWidget from './components/ChatWidget';
 import PriceAnalyticsModal from './components/PriceAnalyticsModal';
 import FixReporterModal from './components/FixReporterModal';
 import CookieConsentBanner from './components/CookieConsentBanner';
+import Interactive3DBackground from './components/Interactive3DBackground';
+import { LoginModal, ProfileDashboard } from './components/AuthAndProfile';
 import {
   PrivacyPolicyPage,
   TermsAndConditionsPage,
   Custom404Page
 } from './components/LegalAndErrorPages';
 import { VersusModal, AdminPanelModal } from './components/AdvancedFeatures';
+import {
+  getMLProfile,
+  recordUserInteraction,
+  scoreProductForUser,
+  getTopUserInterests
+} from './utils/mlEngine';
 
 const CATEGORIES = ['All', 'Footwear', 'Beauty', 'Electronics', 'Apparel', 'Accessories'];
 
-const THEME_MODES = [
-  { id: 'obsidian', label: 'Obsidian Gold', icon: Moon },
-  { id: 'sterling', label: 'Sterling Silver', icon: Layers },
-  { id: 'ivory', label: 'Ivory Luxe', icon: Sun }
+const PALETTE_MODES = [
+  { id: 'charcoal', label: 'Charcoal Red' },
+  { id: 'silver', label: 'Moonlit Silver' },
+  { id: 'ivory', label: 'Editorial Light' }
 ];
 
 export default function App() {
   const [booting, setBooting] = useState(true);
+
+  // Navigation Views: 'home' (Central Chatbot + ML Feed) | 'chat' (Full AI Hub) | 'profile' | 'wishlist' | 'privacy' | 'terms' | '404'
   const [activePage, setActivePage] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // User Auth & ML Personalization State
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('khojo_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [mlProfile, setMlProfile] = useState(() => getMLProfile());
+
+  // Catalog & Search States
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchingLive, setFetchingLive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('featured');
+  const [sortBy, setSortBy] = useState('ml_recommended');
   const [isListening, setIsListening] = useState(false);
 
   const [themeMode, setThemeMode] = useState(() => {
-    return localStorage.getItem('khojo_theme') || 'obsidian';
+    return localStorage.getItem('khojo_theme') || 'charcoal';
   });
 
+  // Modals
   const [activeAnalyticsProduct, setActiveAnalyticsProduct] = useState(null);
   const [reporterTargetProduct, setReporterTargetProduct] = useState(null);
   const [isReporterOpen, setIsReporterOpen] = useState(false);
@@ -94,7 +120,13 @@ export default function App() {
     localStorage.setItem('khojo_price_alerts', JSON.stringify(priceAlerts));
   }, [priceAlerts]);
 
+  const handleRecordInteraction = (payload) => {
+    const updated = recordUserInteraction(payload);
+    setMlProfile({ ...updated });
+  };
+
   const toggleWishlist = (product) => {
+    handleRecordInteraction({ type: 'wishlist', product });
     setWishlist((prev) => {
       const exists = prev.find((item) => item.id === product.id);
       if (exists) return prev.filter((item) => item.id !== product.id);
@@ -122,8 +154,6 @@ export default function App() {
     } else if (products.length >= 2) {
       setVersusProducts([products[0], products[1]]);
       setIsVersusOpen(true);
-    } else {
-      alert('At least 2 products are required to launch Versus Battle Mode!');
     }
   };
 
@@ -131,31 +161,26 @@ export default function App() {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Voice search is not supported in this browser. Please try Chrome or Edge.');
+      alert('Voice search requires Chrome or Edge.');
       return;
     }
-
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
     recognition.onerror = () => setIsListening(false);
-
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
+      handleRecordInteraction({ type: 'search', query: transcript });
       setIsListening(false);
     };
-
     recognition.start();
   };
 
-  // Live Store Scraper & AI Auto-Categorizer Trigger
   const handleLiveWebDiscovery = async () => {
     if (!searchQuery.trim() || fetchingLive) return;
+    handleRecordInteraction({ type: 'search', query: searchQuery.trim() });
     setFetchingLive(true);
     try {
       const res = await fetch(
@@ -168,10 +193,6 @@ export default function App() {
       if (data.products && data.products.length > 0) {
         setProducts((prev) => [...data.products, ...prev]);
         setSelectedCategory('All');
-      } else {
-        alert(
-          'Could not verify live stock for that query right now. Try a more specific brand or product name!'
-        );
       }
     } catch (err) {
       console.error('Live discovery failed:', err);
@@ -200,6 +221,7 @@ export default function App() {
     fetchProducts();
   }, [selectedCategory]);
 
+  // Filter & ML-Rank Inventory
   const displayedProducts = useMemo(() => {
     const baseList = activePage === 'wishlist' ? wishlist : products;
 
@@ -213,7 +235,6 @@ export default function App() {
 
     const filtered = baseList.filter((item) => {
       if (!searchQuery.trim()) return true;
-
       const cleanQuery = normalizeText(searchQuery);
       const queryWords = cleanQuery.split(' ').filter(Boolean);
       if (queryWords.length === 0) return true;
@@ -242,7 +263,12 @@ export default function App() {
     });
 
     const sorted = [...filtered];
-    if (sortBy === 'price_asc') {
+    if (sortBy === 'ml_recommended') {
+      sorted.sort(
+        (a, b) =>
+          scoreProductForUser(b, mlProfile) - scoreProductForUser(a, mlProfile)
+      );
+    } else if (sortBy === 'price_asc') {
       sorted.sort((a, b) => Number(a.price_inr) - Number(b.price_inr));
     } else if (sortBy === 'price_desc') {
       sorted.sort((a, b) => Number(b.price_inr) - Number(a.price_inr));
@@ -250,40 +276,39 @@ export default function App() {
       sorted.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
     }
     return sorted;
-  }, [activePage, wishlist, products, searchQuery, sortBy]);
+  }, [activePage, wishlist, products, searchQuery, sortBy, mlProfile]);
+
+  const userInterests = useMemo(() => getTopUserInterests(mlProfile), [mlProfile]);
 
   const isLight = themeMode === 'ivory';
-  const isSilver = themeMode === 'sterling';
+  const isSilver = themeMode === 'silver';
 
   const rootBg = isLight
-    ? 'bg-[#FAF8F5] text-zinc-900'
+    ? 'bg-[#F5F5F7] text-zinc-900'
     : isSilver
-    ? 'bg-[#141619] text-zinc-100'
-    : 'bg-[#070709] text-zinc-100';
+    ? 'bg-[#1C1D22] text-[#E2E8F0]'
+    : 'bg-[#121215] text-[#E2E8F0]';
 
+  // 3D Charcoal + Moonlit Silver + Signal Red Splash Loader
   if (booting) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#070709] flex flex-col items-center justify-center p-6 text-center">
-        <div className="relative w-20 h-20 rounded-3xl p-[2px] bg-gradient-to-tr from-purple-500 via-[#D4AF37] to-cyan-400 shadow-2xl shadow-purple-500/30 animate-bounce">
-          <div className="w-full h-full rounded-[22px] overflow-hidden bg-[#070709]">
-            <img
-              src="/favicon.ico"
-              alt="Khojo AI"
-              className="w-full h-full object-cover"
-            />
+      <div className="fixed inset-0 z-50 bg-[#121215] flex flex-col items-center justify-center p-6 text-center">
+        <div className="relative w-20 h-20 rounded-3xl p-[2px] bg-gradient-to-tr from-[#FF2A2A] via-[#C0C0C8] to-[#FF2A2A] shadow-2xl shadow-[#FF2A2A]/30 animate-bounce">
+          <div className="w-full h-full rounded-[22px] overflow-hidden bg-[#121215]">
+            <img src="/favicon.ico" alt="Khojo AI" className="w-full h-full object-cover" />
           </div>
         </div>
         <h1 className="font-harmond text-4xl sm:text-5xl font-bold text-white mt-5 tracking-wide">
           Khojo{' '}
-          <span className="italic bg-gradient-to-r from-[#D4AF37] via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+          <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
             AI
           </span>
         </h1>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-zinc-400 mt-2">
-          Initializing Price Intelligence Vault...
+        <p className="text-[11px] uppercase tracking-[0.28em] text-[#C0C0C8] mt-2">
+          Loading Conversational AI & ML Inventory Engine...
         </p>
         <div className="w-48 h-1 rounded-full bg-zinc-800 overflow-hidden mt-5">
-          <div className="h-full w-full bg-gradient-to-r from-purple-500 via-[#D4AF37] to-cyan-400 animate-pulse" />
+          <div className="h-full w-full bg-gradient-to-r from-[#C0C0C8] via-[#FF2A2A] to-[#C0C0C8] animate-pulse" />
         </div>
       </div>
     );
@@ -291,16 +316,10 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${rootBg}`}>
-      {/* Sticky Luxury Header */}
-      <header
-        className={`sticky top-0 z-30 backdrop-blur-xl border-b transition-colors ${
-          isLight
-            ? 'bg-white/90 border-zinc-200'
-            : 'bg-[#08080C]/90 border-[#D4AF37]/25'
-        }`}
-      >
+      {/* Sticky Header: Charcoal Grey + Moonlit Silver + Signal Red */}
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#121215]/90 border-b border-[#C0C0C8]/20">
         <div className="max-w-7xl mx-auto px-3.5 sm:px-6 py-3.5 flex items-center justify-between gap-3">
-          {/* Brand Logo */}
+          {/* Logo */}
           <div
             className="flex items-center gap-3 sm:gap-4 cursor-pointer group"
             onClick={() => {
@@ -308,8 +327,8 @@ export default function App() {
               setMobileMenuOpen(false);
             }}
           >
-            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl p-[1.5px] bg-gradient-to-tr from-purple-500 via-[#D4AF37] to-cyan-400 shadow-lg shadow-purple-500/20 group-hover:scale-105 transition-transform shrink-0">
-              <div className="w-full h-full rounded-[14px] overflow-hidden bg-[#070709]">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl p-[1.5px] bg-gradient-to-tr from-[#FF2A2A] via-[#C0C0C8] to-[#FF2A2A] shadow-lg shadow-[#FF2A2A]/20 group-hover:scale-105 transition-transform shrink-0">
+              <div className="w-full h-full rounded-[14px] overflow-hidden bg-[#121215]">
                 <img
                   src="/favicon.ico"
                   alt="Khojo AI"
@@ -318,77 +337,80 @@ export default function App() {
               </div>
             </div>
             <div>
-              <h1 className="font-harmond text-2xl sm:text-4xl font-bold tracking-wide leading-none">
+              <h1 className="font-harmond text-2xl sm:text-4xl font-bold tracking-wide leading-none text-white">
                 Khojo{' '}
-                <span className="italic bg-gradient-to-r from-[#D4AF37] via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+                <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
                   AI
                 </span>
               </h1>
-              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-zinc-400 mt-0.5">
-                Black • Gold • Price Intelligence
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#C0C0C8] mt-0.5">
+                Charcoal • Moonlit Silver • Signal Red AI
               </p>
             </div>
           </div>
 
-          {/* Right Header Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <div
-              className={`hidden lg:flex items-center p-1 rounded-xl border ${
-                isLight
-                  ? 'bg-zinc-100 border-zinc-300'
-                  : 'bg-zinc-900/90 border-white/10'
-              }`}
-            >
-              {THEME_MODES.map((m) => {
-                const Icon = m.icon;
-                const active = themeMode === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => setThemeMode(m.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      active
-                        ? 'bg-gradient-to-r from-[#D4AF37] to-[#B68D2C] text-black shadow'
-                        : 'text-zinc-400 hover:text-[#D4AF37]'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{m.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Center Navigation Tabs (Chatbot Hub Priority) */}
+          <div className="hidden md:flex items-center p-1 rounded-2xl bg-[#1A1A20] border border-[#C0C0C8]/20">
+            {[
+              { id: 'home', label: 'AI Hub & Storefront', icon: Sparkles },
+              { id: 'chat', label: 'Full-Screen Chatbot', icon: Bot },
+              { id: 'profile', label: 'ML Profile', icon: Brain }
+            ].map((nav) => {
+              const Icon = nav.icon;
+              const active = activePage === nav.id;
+              return (
+                <button
+                  key={nav.id}
+                  onClick={() => setActivePage(nav.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    active
+                      ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-md shadow-[#FF2A2A]/25'
+                      : 'text-[#C0C0C8] hover:text-white'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{nav.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
+          {/* Right Controls: Login / Profile + Versus + Report + Wishlist */}
+          <div className="flex items-center gap-2">
             <button
               onClick={openVersusBattle}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-semibold transition-all cursor-pointer"
-              title="Launch Side-by-Side Product Battle"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#C0C0C8]/30 bg-white/5 hover:border-white text-[#E2E8F0] text-xs font-semibold cursor-pointer"
             >
-              <Scale className="w-3.5 h-3.5" />
+              <Scale className="w-3.5 h-3.5 text-[#FF2A2A]" />
               <span>Versus</span>
             </button>
 
             <button
               onClick={() => openFixReporter(null)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-cyan-400/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-semibold transition-all cursor-pointer"
-              title="Report Broken Link or Update Database Info"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 hover:bg-[#FF2A2A] text-white text-xs font-bold transition-all cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5" />
               <span>Report Fix</span>
             </button>
 
-            {priceAlerts.length > 0 && (
+            {/* User Login / Profile Trigger */}
+            {user ? (
               <button
-                onClick={() => {
-                  const first =
-                    products.find((p) => p.id === priceAlerts[0].id) || products[0];
-                  if (first) setActiveAnalyticsProduct(first);
-                }}
-                className="px-2.5 sm:px-3 py-2.5 rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/10 text-[#D4AF37] text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                title="Active Price Drop Alerts"
+                onClick={() => setActivePage('profile')}
+                className="px-3 py-2 rounded-xl border border-[#C0C0C8]/30 bg-[#1A1A22] hover:border-[#FF2A2A] text-white text-xs font-bold flex items-center gap-2 cursor-pointer"
               >
-                <Bell className="w-4 h-4" />
-                <span>{priceAlerts.length}</span>
+                <span className="w-5 h-5 rounded-full bg-[#FF2A2A] text-white flex items-center justify-center text-[10px]">
+                  {user.name[0]}
+                </span>
+                <span className="hidden sm:inline">{user.name}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsLoginOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-[#FF2A2A]/20 cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In</span>
               </button>
             )}
 
@@ -396,22 +418,15 @@ export default function App() {
               onClick={() =>
                 setActivePage(activePage === 'wishlist' ? 'home' : 'wishlist')
               }
-              className={`relative p-2.5 rounded-xl border transition-all cursor-pointer ${
-                activePage === 'wishlist'
-                  ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-[#D4AF37]'
-                  : isLight
-                  ? 'border-zinc-300 bg-white text-zinc-700 hover:border-[#D4AF37]'
-                  : 'border-white/15 bg-zinc-900 text-zinc-300 hover:border-[#D4AF37] hover:text-[#D4AF37]'
-              }`}
-              title="View Saved Wishlist"
+              className="relative p-2.5 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-[#E2E8F0] hover:border-[#FF2A2A] cursor-pointer"
             >
               <Heart
-                className={`w-5 h-5 ${
-                  activePage === 'wishlist' ? 'fill-[#D4AF37] text-[#D4AF37]' : ''
+                className={`w-4 h-4 ${
+                  activePage === 'wishlist' ? 'fill-[#FF2A2A] text-[#FF2A2A]' : ''
                 }`}
               />
               {wishlist.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-gradient-to-r from-[#D4AF37] to-cyan-400 text-black text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center shadow">
+                <span className="absolute -top-1.5 -right-1.5 bg-[#FF2A2A] text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
                   {wishlist.length}
                 </span>
               )}
@@ -419,77 +434,43 @@ export default function App() {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2.5 rounded-xl border border-white/15 bg-zinc-900 text-[#D4AF37] cursor-pointer"
-              aria-label="Toggle Menu"
+              className="md:hidden p-2.5 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-white cursor-pointer"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
+        {/* Mobile Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-[#D4AF37]/20 bg-[#0B0B0F] px-4 py-4 space-y-4 animate-fadeIn">
+          <div className="md:hidden border-t border-[#C0C0C8]/20 bg-[#141418] px-4 py-4 space-y-3 animate-fadeIn">
             <div className="grid grid-cols-3 gap-2">
-              {THEME_MODES.map((m) => {
-                const Icon = m.icon;
-                const active = themeMode === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => setThemeMode(m.id)}
-                    className={`py-2 px-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border ${
-                      active
-                        ? 'bg-[#D4AF37] text-black border-[#D4AF37]'
-                        : 'bg-zinc-900 text-zinc-300 border-white/10'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="truncate">{m.label.split(' ')[0]}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
-              <button
-                onClick={() => {
-                  openVersusBattle();
-                  setMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[#D4AF37] flex items-center justify-center gap-1.5"
-              >
-                <Scale className="w-4 h-4" /> Versus Battle Mode
-              </button>
-              <button
-                onClick={() => openFixReporter(null)}
-                className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 flex items-center justify-center gap-1.5"
-              >
-                <Wrench className="w-4 h-4" /> Report Database Fix
-              </button>
-              <button
-                onClick={() => {
-                  setActivePage('privacy');
-                  setMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-xl bg-zinc-900 border border-white/10 text-zinc-300 flex items-center justify-center gap-1.5"
-              >
-                <Shield className="w-4 h-4 text-[#D4AF37]" /> Privacy Policy
-              </button>
-              <button
-                onClick={() => {
-                  setIsAdminOpen(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-center gap-1.5"
-              >
-                <Lock className="w-4 h-4" /> Secret Admin
-              </button>
+              {[
+                { id: 'home', label: 'AI Hub' },
+                { id: 'chat', label: 'Full Chat' },
+                { id: 'profile', label: 'ML Profile' }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setActivePage(t.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`py-2 rounded-xl text-xs font-bold border ${
+                    activePage === t.id
+                      ? 'bg-[#FF2A2A] text-white border-[#FF2A2A]'
+                      : 'bg-zinc-900 text-[#C0C0C8] border-white/10'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
       </header>
 
-      {/* Main Content Router */}
+      {/* Route Views */}
       {activePage === 'privacy' ? (
         <PrivacyPolicyPage onBack={() => setActivePage('home')} themeMode={themeMode} />
       ) : activePage === 'terms' ? (
@@ -499,251 +480,205 @@ export default function App() {
           onBack={() => setActivePage('home')}
           onOpenReporter={() => openFixReporter(null)}
         />
+      ) : activePage === 'profile' ? (
+        <ProfileDashboard
+          user={user}
+          mlProfile={mlProfile}
+          onResetML={(fresh) => setMlProfile({ ...fresh })}
+          onLogout={() => {
+            localStorage.removeItem('khojo_user');
+            setUser(null);
+          }}
+          wishlist={wishlist}
+          priceAlerts={priceAlerts}
+          onNavigate={(page) => setActivePage(page)}
+        />
+      ) : activePage === 'chat' ? (
+        <div className="max-w-6xl mx-auto w-full px-4 py-8 flex-1 animate-fadeIn">
+          <ChatWidget
+            embedded={true}
+            user={user}
+            mlProfile={mlProfile}
+            onRecordInteraction={handleRecordInteraction}
+            wishlist={wishlist}
+            toggleWishlist={toggleWishlist}
+            onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
+            onOpenReporter={(p) => openFixReporter(p)}
+          />
+        </div>
       ) : (
         <>
+          {/* HERO SECTION WITH 3D WEBGL-STYLE CANVAS & CENTRAL CONVERSATIONAL HUB */}
           {activePage === 'home' && (
-            <section
-              className={`relative overflow-hidden border-b py-9 sm:py-12 px-4 animate-fadeIn ${
-                isLight
-                  ? 'bg-gradient-to-b from-amber-50/60 via-white to-white border-zinc-200'
-                  : 'bg-gradient-to-b from-[#0E0D18] via-[#09090D] to-[#070709] border-[#D4AF37]/20 text-white'
-              }`}
-            >
-              <div className="max-w-4xl mx-auto text-center space-y-4">
-                <span className="inline-flex items-center gap-2 bg-[#D4AF37]/10 border border-[#D4AF37]/40 text-[#D4AF37] text-[10px] sm:text-xs font-semibold px-3.5 py-1.5 rounded-full tracking-widest uppercase">
-                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  Khojo AI • Live Web Scraper, AI Auto-Categorizer & Versus Mode
-                </span>
+            <section className="relative overflow-hidden border-b border-[#C0C0C8]/20 py-10 sm:py-14 px-4 bg-gradient-to-b from-[#17171D] via-[#121216] to-[#0E0E12]">
+              <Interactive3DBackground />
 
-                <h2 className="font-harmond text-4xl sm:text-6xl font-bold tracking-tight leading-none">
-                  Compare Prices.{' '}
-                  <span className="italic bg-gradient-to-r from-[#D4AF37] via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-                    Shop Smarter.
+              <div className="relative z-10 max-w-5xl mx-auto space-y-8">
+                <div className="text-center space-y-4">
+                  <span className="inline-flex items-center gap-2 bg-[#1C1C24]/90 border border-[#C0C0C8]/30 text-[#E2E8F0] text-[10px] sm:text-xs font-semibold px-4 py-1.5 rounded-full tracking-widest uppercase">
+                    <Sparkles className="w-3.5 h-3.5 text-[#FF2A2A]" />
+                    Chatbot-First Commerce • Instant Policy Engine • ML Product Ranking
                   </span>
-                </h2>
 
-                <p className="text-zinc-400 text-xs sm:text-base max-w-xl mx-auto px-2">
-                  Compare real-time deals across Amazon India, Flipkart, Myntra & Nykaa with 6-month historical price graphs, live store scraping, and AI auto-categorization.
-                </p>
+                  <h2 className="font-harmond text-4xl sm:text-6xl font-bold tracking-tight leading-none text-white">
+                    Ask Khojo AI.{' '}
+                    <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
+                      Shop Smarter.
+                    </span>
+                  </h2>
 
-                <div className="max-w-2xl mx-auto pt-2">
-                  <div
-                    className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-1 rounded-2xl p-2 sm:p-1.5 border shadow-xl ${
-                      isLight
-                        ? 'bg-white border-zinc-300'
-                        : 'bg-zinc-900/90 border-[#D4AF37]/40 shadow-purple-500/10'
-                    }`}
-                  >
-                    <div className="flex items-center flex-1">
-                      <Search className="w-5 h-5 text-[#D4AF37] ml-2.5 mr-2 shrink-0" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={
-                          isListening
-                            ? 'Listening... Speak a product or brand now!'
-                            : 'Search sneakers, U.S. Polo, skincare, or tap the mic...'
-                        }
-                        className="w-full bg-transparent text-xs sm:text-sm focus:outline-none py-2"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery('')}
-                          className="text-xs text-zinc-400 hover:text-[#D4AF37] px-2 cursor-pointer"
-                        >
-                          Clear
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={startVoiceSearch}
-                        title="Search by Voice (English / Hinglish)"
-                        className={`p-2 mx-1 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
-                          isListening
-                            ? 'bg-rose-500/20 border-rose-500 text-rose-400 animate-pulse'
-                            : 'bg-cyan-500/10 border-cyan-400/30 text-cyan-400 hover:bg-cyan-500/20'
-                        }`}
-                      >
-                        <Mic className="w-4 h-4" />
-                        <span className="text-[11px] font-bold hidden md:inline">
-                          {isListening ? 'Listening...' : 'Voice'}
-                        </span>
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        if (displayedProducts[0]) {
-                          setActiveAnalyticsProduct(displayedProducts[0]);
-                        } else if (searchQuery.trim()) {
-                          handleLiveWebDiscovery();
-                        }
-                      }}
-                      className="bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-cyan-400 text-black text-xs font-bold uppercase tracking-wider px-5 py-2.5 rounded-xl shrink-0 hover:brightness-110 transition-all cursor-pointer"
-                    >
-                      {displayedProducts.length === 0 && searchQuery.trim()
-                        ? 'Fetch Live'
-                        : 'Scan Graph'}
-                    </button>
-                  </div>
+                  <p className="text-[#C0C0C8] text-xs sm:text-base max-w-2xl mx-auto">
+                    This system answers repetitive support questions, searches through live inventory data, and makes personalized Machine Learning product recommendations.
+                  </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                  {[
-                    {
-                      label: 'Versus Battle Mode',
-                      icon: Scale,
-                      action: openVersusBattle,
-                      highlight: true
-                    },
-                    {
-                      label: '4-Store Price Compare',
-                      icon: Layers,
-                      action: () =>
-                        displayedProducts[0] &&
-                        setActiveAnalyticsProduct(displayedProducts[0])
-                    },
-                    {
-                      label: '6-Month Price Graph',
-                      icon: TrendingDown,
-                      action: () =>
-                        displayedProducts[1] &&
-                        setActiveAnalyticsProduct(displayedProducts[1])
-                    },
-                    {
-                      label: 'Report Broken Link / Fix Info',
-                      icon: Wrench,
-                      action: () => openFixReporter(null)
-                    },
-                    {
-                      label: 'Secret Admin Vault',
-                      icon: Lock,
-                      action: () => setIsAdminOpen(true)
-                    }
-                  ].map((pill, idx) => {
-                    const Icon = pill.icon;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={pill.action}
-                        className={`px-3.5 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
-                          pill.highlight
-                            ? 'bg-gradient-to-r from-[#D4AF37]/20 to-cyan-500/20 border-[#D4AF37] text-[#F3E5AB] shadow-sm'
-                            : isLight
-                            ? 'bg-white border-zinc-200 text-zinc-700 hover:border-[#D4AF37]'
-                            : 'bg-zinc-900/70 border-white/10 text-zinc-300 hover:border-cyan-400/50 hover:text-cyan-300'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        {pill.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* CENTRAL FOCUS: EMBEDDED CONVERSATIONAL AI COMMAND CENTER */}
+                <ChatWidget
+                  embedded={true}
+                  user={user}
+                  mlProfile={mlProfile}
+                  onRecordInteraction={handleRecordInteraction}
+                  wishlist={wishlist}
+                  toggleWishlist={toggleWishlist}
+                  onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
+                  onOpenReporter={(p) => openFixReporter(p)}
+                />
               </div>
             </section>
           )}
 
-          {/* Main Product Catalog Grid */}
-          <main className="max-w-7xl mx-auto w-full px-3.5 sm:px-6 py-6 sm:py-8 flex-1 animate-fadeIn">
-            {activePage === 'wishlist' ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-8 pb-4 border-b border-[#D4AF37]/30">
+          {/* PERSONALIZED ML INVENTORY & INTERACTIVE COMPARISON GRID */}
+          <main className="max-w-7xl mx-auto w-full px-3.5 sm:px-6 py-8 flex-1 space-y-6 animate-fadeIn">
+            {/* ML Personalization Status Bar */}
+            <div className="p-4 rounded-2xl bg-[#18181E] border border-[#C0C0C8]/20 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-[#FF2A2A]">
+                  <Brain className="w-5 h-5" />
+                </div>
                 <div>
-                  <h2 className="font-harmond text-3xl font-bold flex items-center gap-2.5">
-                    <Heart className="w-6 h-6 fill-[#D4AF37] text-[#D4AF37]" /> My Saved Wishlist
-                  </h2>
-                  <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-                    Bookmarked items with live price tracking & comparison.
+                  <h3 className="font-harmond text-xl font-bold text-white">
+                    {user ? `Recommended for ${user.name}` : 'ML Personalized Inventory Feed'}
+                  </h3>
+                  <p className="text-xs text-[#C0C0C8]">
+                    Prioritizing <strong>{userInterests.topCategory}</strong>
+                    {userInterests.recentKeywords.length > 0 &&
+                      ` & recent searches (${userInterests.recentKeywords
+                        .slice(0, 3)
+                        .map((k) => `"${k}"`)
+                        .join(', ')})`}
                   </p>
                 </div>
+              </div>
+
+              {/* Instant Inventory Search & Voice Filter */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center flex-1 sm:w-72 px-3 py-2 rounded-xl bg-[#101014] border border-[#C0C0C8]/25">
+                  <Search className="w-4 h-4 text-[#C0C0C8] mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      if (e.target.value.length > 3) {
+                        handleRecordInteraction({
+                          type: 'search',
+                          query: e.target.value
+                        });
+                      }
+                    }}
+                    placeholder="Filter inventory or speak..."
+                    className="w-full bg-transparent text-xs text-white focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={startVoiceSearch}
+                    className="text-[#FF2A2A] hover:scale-110 cursor-pointer ml-1"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                </div>
+
                 <button
-                  onClick={() => setActivePage('home')}
-                  className="text-xs font-bold uppercase tracking-wider bg-[#D4AF37] text-black px-4 py-2.5 rounded-xl cursor-pointer"
+                  onClick={openVersusBattle}
+                  className="px-3.5 py-2 rounded-xl bg-[#FF2A2A] text-white text-xs font-bold uppercase tracking-wider cursor-pointer shrink-0 shadow-md shadow-[#FF2A2A]/20"
                 >
-                  Back to Catalog
+                  Versus Battle
                 </button>
               </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
-                        selectedCategory === cat
-                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#B68D2C] text-black shadow-md'
-                          : isLight
-                          ? 'bg-white text-zinc-700 border border-zinc-300 hover:border-[#D4AF37]'
-                          : 'bg-zinc-900 text-zinc-300 border border-white/10 hover:border-[#D4AF37]/60'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
+            </div>
 
-                <div className="flex items-center justify-end gap-2 text-xs">
-                  <SlidersHorizontal className="w-4 h-4 text-[#D4AF37]" />
-                  <span className="text-zinc-400">Sort:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className={`px-3 py-2 rounded-xl border text-xs font-semibold focus:outline-none focus:border-[#D4AF37] ${
-                      isLight
-                        ? 'bg-white border-zinc-300 text-zinc-900'
-                        : 'bg-zinc-900 border-white/15 text-zinc-200'
+            {/* Category & ML Sort Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      handleRecordInteraction({ type: 'category', category: cat });
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                      selectedCategory === cat
+                        ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-md shadow-[#FF2A2A]/25'
+                        : 'bg-[#1A1A20] text-[#C0C0C8] border border-[#C0C0C8]/20 hover:border-white hover:text-white'
                     }`}
                   >
-                    <option value="featured">Featured Steals</option>
-                    <option value="price_asc">Price: Low to High</option>
-                    <option value="price_desc">Price: High to Low</option>
-                    <option value="rating">Top Rated</option>
-                  </select>
-                </div>
+                    {cat}
+                  </button>
+                ))}
               </div>
-            )}
 
+              <div className="flex items-center justify-end gap-2 text-xs">
+                <SlidersHorizontal className="w-4 h-4 text-[#FF2A2A]" />
+                <span className="text-[#C0C0C8]">Rank By:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-white text-xs font-semibold focus:outline-none focus:border-[#FF2A2A]"
+                >
+                  <option value="ml_recommended">🧠 ML Personal Match</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="rating">Top Customer Rated</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Product Grid */}
             {loading && activePage !== 'wishlist' ? (
-              <div className="py-24 flex flex-col items-center justify-center text-[#D4AF37] gap-3">
+              <div className="py-24 flex flex-col items-center justify-center text-[#FF2A2A] gap-3">
                 <Loader2 className="w-9 h-9 animate-spin" />
-                <p className="text-xs uppercase tracking-widest text-zinc-400">
-                  Loading Live Catalog...
+                <p className="text-xs uppercase tracking-widest text-[#C0C0C8]">
+                  Scanning Live Inventory...
                 </p>
               </div>
             ) : displayedProducts.length === 0 ? (
-              <div className="py-20 text-center text-zinc-400 text-sm space-y-4">
-                <p className="max-w-md mx-auto leading-relaxed">
-                  {activePage === 'wishlist'
-                    ? 'Your wishlist is empty. Tap the heart icon on any product to save it!'
-                    : `No local vault items matched "${searchQuery}". Want Khojo AI to scrape it live from Amazon India, Flipkart, Myntra & Nykaa and auto-categorize it?`}
+              <div className="py-20 text-center text-[#C0C0C8] text-sm space-y-4">
+                <p className="max-w-md mx-auto">
+                  No local vault items matched "{searchQuery}". Want Khojo AI to scrape it live from Amazon, Flipkart, Myntra & Nykaa?
                 </p>
-                {searchQuery && activePage !== 'wishlist' && (
-                  <div className="flex flex-wrap items-center justify-center gap-3">
+                {searchQuery && (
+                  <div className="flex justify-center gap-3">
                     <button
                       onClick={handleLiveWebDiscovery}
                       disabled={fetchingLive}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-cyan-400 text-black text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-2 shadow-lg hover:brightness-110 transition-all"
+                      className="px-5 py-2.5 rounded-xl bg-[#FF2A2A] text-white text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-2"
                     >
                       {fetchingLive ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Scraping Live Stores & Auto-Categorizing...
+                          <Loader2 className="w-4 h-4 animate-spin" /> Scraping Stores...
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-4 h-4" />
-                          Fetch "{searchQuery}" Live & Auto-Categorize
+                          <Sparkles className="w-4 h-4" /> Fetch "{searchQuery}" Live
                         </>
                       )}
                     </button>
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="px-4 py-2.5 rounded-xl border border-white/15 bg-zinc-900 text-zinc-300 text-xs font-bold uppercase tracking-wider cursor-pointer hover:border-[#D4AF37]"
+                      className="px-4 py-2.5 rounded-xl border border-[#C0C0C8]/30 text-[#C0C0C8] text-xs font-bold uppercase cursor-pointer"
                     >
-                      Reset Filter
+                      Clear
                     </button>
                   </div>
                 )}
@@ -754,11 +689,14 @@ export default function App() {
                   <ProductCard
                     key={prod.id}
                     product={prod}
+                    mlMatchScore={scoreProductForUser(prod, mlProfile)}
                     isWishlisted={wishlist.some((w) => w.id === prod.id)}
                     onToggleWishlist={() => toggleWishlist(prod)}
                     onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
                     onOpenReporter={(p) => openFixReporter(p)}
-                    themeMode={themeMode}
+                    onProductInteract={(p) =>
+                      handleRecordInteraction({ type: 'click', product: p })
+                    }
                   />
                 ))}
               </div>
@@ -768,75 +706,57 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer
-        className={`border-t py-8 px-4 text-xs ${
-          isLight
-            ? 'bg-white border-zinc-200 text-zinc-500'
-            : 'bg-[#050507] border-[#D4AF37]/20 text-zinc-400'
-        }`}
-      >
+      <footer className="border-t border-[#C0C0C8]/20 py-8 px-4 text-xs bg-[#0B0B0E] text-[#C0C0C8]">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src="/favicon.ico" alt="Logo" className="w-5 h-5 rounded-md" />
-            <span className="font-harmond text-lg text-[#D4AF37] font-bold">
+            <span className="font-harmond text-lg text-white font-bold">
               Khojo AI
             </span>
-            <span>© 2026 • India's Luxury AI Shopping & Price Intelligence Hub</span>
+            <span>© 2026 • Conversational AI & ML Price Intelligence Hub</span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold">
-            <button
-              onClick={() => {
-                setActivePage('home');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="hover:text-[#D4AF37] cursor-pointer"
-            >
-              Catalog
+            <button onClick={() => setActivePage('home')} className="hover:text-white cursor-pointer">
+              AI Hub
             </button>
-            <button
-              onClick={() => {
-                setActivePage('privacy');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="hover:text-[#D4AF37] cursor-pointer"
-            >
+            <button onClick={() => setActivePage('profile')} className="hover:text-white cursor-pointer">
+              ML Profile
+            </button>
+            <button onClick={() => setActivePage('privacy')} className="hover:text-white cursor-pointer">
               Privacy Policy
             </button>
-            <button
-              onClick={() => {
-                setActivePage('terms');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="hover:text-[#D4AF37] cursor-pointer"
-            >
-              Terms & Conditions
+            <button onClick={() => setActivePage('terms')} className="hover:text-white cursor-pointer">
+              Terms
             </button>
             <button
               onClick={() => openFixReporter(null)}
-              className="text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[#FF2A2A] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5" /> Report Fix
             </button>
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[#C0C0C8] hover:text-white flex items-center gap-1 cursor-pointer"
             >
               <Lock className="w-3.5 h-3.5" /> Secret Admin
-            </button>
-            <button
-              onClick={() => {
-                setActivePage('404');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="text-zinc-500 hover:text-rose-400 cursor-pointer"
-            >
-              404 Vault
             </button>
           </div>
         </div>
       </footer>
 
+      {/* Login Modal */}
+      {isLoginOpen && (
+        <LoginModal
+          onClose={() => setIsLoginOpen(false)}
+          onLoginSuccess={(loggedInUser) => {
+            setUser(loggedInUser);
+            setIsLoginOpen(false);
+          }}
+        />
+      )}
+
+      {/* BuyHatke 6-Month Price Graph & 4-Store Comparison Modal */}
       {activeAnalyticsProduct && (
         <PriceAnalyticsModal
           product={activeAnalyticsProduct}
@@ -847,6 +767,7 @@ export default function App() {
         />
       )}
 
+      {/* Database Issue & Broken Link Fix Reporter Modal */}
       {isReporterOpen && (
         <FixReporterModal
           product={reporterTargetProduct}
@@ -855,6 +776,7 @@ export default function App() {
         />
       )}
 
+      {/* Side-by-Side Versus Battle Modal */}
       {isVersusOpen && (
         <VersusModal
           selectedProducts={versusProducts}
@@ -863,6 +785,7 @@ export default function App() {
         />
       )}
 
+      {/* Secret Admin Vault Modal */}
       {isAdminOpen && (
         <AdminPanelModal
           onClose={() => setIsAdminOpen(false)}
@@ -871,14 +794,6 @@ export default function App() {
       )}
 
       <CookieConsentBanner onOpenPrivacy={() => setActivePage('privacy')} />
-
-      <ChatWidget
-        wishlist={wishlist}
-        toggleWishlist={toggleWishlist}
-        onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
-        onOpenReporter={(p) => openFixReporter(p)}
-        themeMode={themeMode}
-      />
     </div>
   );
 }

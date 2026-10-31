@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Star, ExternalLink, Heart, BarChart2, Sparkles, Wrench } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 const PLATFORM_BADGES = {
-  'Amazon India': 'bg-zinc-950/90 text-[#D4AF37] border border-[#D4AF37]/50',
-  'Flipkart': 'bg-zinc-950/90 text-sky-300 border border-sky-400/40',
-  'Myntra': 'bg-zinc-950/90 text-pink-300 border border-pink-400/40',
-  'Nykaa': 'bg-zinc-950/90 text-rose-300 border border-rose-400/40'
+  'Amazon India': 'bg-[#121215]/90 text-[#E2E8F0] border border-[#C0C0C8]/50',
+  'Flipkart': 'bg-[#121215]/90 text-sky-300 border border-sky-400/40',
+  'Myntra': 'bg-[#121215]/90 text-pink-300 border border-pink-400/40',
+  'Nykaa': 'bg-[#121215]/90 text-rose-300 border border-rose-400/40'
 };
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
@@ -18,20 +18,21 @@ export default function ProductCard({
   onToggleWishlist,
   onOpenAnalytics,
   onOpenReporter,
-  themeMode = 'obsidian'
+  onProductInteract,
+  mlMatchScore = 92
 }) {
+  const [tiltStyle, setTiltStyle] = useState({});
+
   if (!product) return null;
 
   const badgeStyle =
     PLATFORM_BADGES[product.platform] ||
-    'bg-zinc-950/90 text-[#D4AF37] border border-[#D4AF37]/40';
+    'bg-[#121215]/90 text-[#C0C0C8] border border-[#C0C0C8]/40';
 
   const discount =
     product.mrp_inr && product.mrp_inr > product.price_inr
       ? Math.round(((product.mrp_inr - product.price_inr) / product.mrp_inr) * 100)
       : 18;
-
-  const dealScore = Math.min(99, Math.max(82, 76 + Math.round(discount * 0.5)));
 
   const liveRedirectUrl = `${API_BASE_URL}/api/redirect?name=${encodeURIComponent(
     product.name || ''
@@ -39,19 +40,33 @@ export default function ProductCard({
     product.platform || 'Amazon India'
   )}`;
 
-  const isLight = themeMode === 'ivory';
-  const isSilver = themeMode === 'sterling';
+  const handleMouseMove = (e) => {
+    if (compact) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const rotateY = ((x / rect.width - 0.5) * 12).toFixed(2);
+    const rotateX = ((0.5 - y / rect.height) * 12).toFixed(2);
+    setTiltStyle({
+      transform: `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.015, 1.015, 1.015)`,
+      transition: 'transform 0.08s ease-out'
+    });
+  };
 
-  const cardTheme = isLight
-    ? 'bg-white border-zinc-200/90 text-zinc-900 hover:border-[#D4AF37]'
-    : isSilver
-    ? 'bg-gradient-to-b from-zinc-800/90 to-zinc-900/95 border-zinc-600/60 text-zinc-100 hover:border-[#E2E8F0]'
-    : 'bg-gradient-to-b from-[#121216] to-[#0A0A0D] border-[#D4AF37]/25 text-zinc-100 hover:border-[#D4AF37]/80';
+  const handleMouseLeave = () => {
+    setTiltStyle({
+      transform: 'perspective(900px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
+      transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+    });
+  };
 
   return (
     <div
-      className={`rounded-2xl border overflow-hidden transition-all duration-300 flex flex-col justify-between group hover:-translate-y-1 hover:shadow-xl hover:shadow-[#D4AF37]/10 ${cardTheme} ${
-        compact ? 'w-60 sm:w-64 shrink-0' : 'w-full'
+      style={tiltStyle}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className={`rounded-2xl border overflow-hidden flex flex-col justify-between group bg-gradient-to-b from-[#1A1A20] to-[#111115] border-[#C0C0C8]/20 text-zinc-100 hover:border-[#FF2A2A]/70 hover:shadow-2xl hover:shadow-[#FF2A2A]/10 ${
+        compact ? 'w-64 shrink-0' : 'w-full'
       }`}
     >
       <div>
@@ -73,27 +88,32 @@ export default function ProductCard({
             {product.platform}
           </span>
 
+          {/* ML Match & Deal Score Pill */}
           <button
-            onClick={() => onOpenAnalytics && onOpenAnalytics(product)}
-            title="View Khojo AI Deal Score & Price Graph"
-            className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-[#D4AF37]/60 text-[#D4AF37] text-[10px] font-bold flex items-center gap-1 hover:bg-[#D4AF37] hover:text-black transition-all cursor-pointer"
+            onClick={() => {
+              if (onProductInteract) onProductInteract(product);
+              if (onOpenAnalytics) onOpenAnalytics(product);
+            }}
+            title="Personalized ML Match & 6-Month Price Graph"
+            className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-[#C0C0C8]/40 text-[#E2E8F0] text-[10px] font-bold flex items-center gap-1 hover:border-[#FF2A2A] hover:text-[#FF2A2A] transition-all cursor-pointer"
           >
-            <Sparkles className="w-3 h-3" />
-            Deal Score {dealScore}
+            <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
+            {mlMatchScore}% ML Match
           </button>
 
           <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
             <button
               onClick={(e) => {
                 e.preventDefault();
+                if (onProductInteract) onProductInteract(product);
                 if (onToggleWishlist) onToggleWishlist();
               }}
               title="Save to Wishlist"
-              className="p-2 rounded-full bg-black/70 border border-white/15 backdrop-blur-md hover:border-[#D4AF37] hover:scale-110 transition-all cursor-pointer"
+              className="p-2 rounded-full bg-black/75 border border-white/15 backdrop-blur-md hover:border-[#FF2A2A] hover:scale-110 transition-all cursor-pointer"
             >
               <Heart
                 className={`w-4 h-4 transition-colors ${
-                  isWishlisted ? 'fill-[#D4AF37] text-[#D4AF37]' : 'text-zinc-300'
+                  isWishlisted ? 'fill-[#FF2A2A] text-[#FF2A2A]' : 'text-zinc-300'
                 }`}
               />
             </button>
@@ -105,35 +125,27 @@ export default function ProductCard({
                   onOpenReporter(product);
                 }}
                 title="Report Broken Link or Wrong Price"
-                className="p-2 rounded-full bg-black/70 border border-white/15 backdrop-blur-md text-zinc-300 hover:text-cyan-400 hover:border-cyan-400 transition-all cursor-pointer"
+                className="p-2 rounded-full bg-black/75 border border-white/15 backdrop-blur-md text-zinc-300 hover:text-[#FF2A2A] hover:border-[#FF2A2A] transition-all cursor-pointer"
               >
                 <Wrench className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
-
-          {!product.in_stock && (
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px] flex items-center justify-center">
-              <span className="bg-rose-600 text-white text-xs font-bold px-3 py-1.5 rounded-md uppercase tracking-wider">
-                Out of Stock
-              </span>
-            </div>
-          )}
         </div>
 
         <div className={compact ? 'p-3' : 'p-4'}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-[#D4AF37] mb-1">
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-[#C0C0C8] mb-1">
             <span className="truncate max-w-[70%]">{product.brand}</span>
             {product.rating && (
-              <span className="flex items-center gap-1 text-amber-400 shrink-0">
-                <Star className="w-3 h-3 fill-amber-400" />
+              <span className="flex items-center gap-1 text-[#E2E8F0] shrink-0">
+                <Star className="w-3 h-3 fill-[#FF2A2A] text-[#FF2A2A]" />
                 {product.rating}
               </span>
             )}
           </div>
 
           <h3
-            className={`font-harmond font-semibold line-clamp-2 ${
+            className={`font-harmond font-semibold line-clamp-2 text-white ${
               compact ? 'text-base leading-snug' : 'text-lg sm:text-xl leading-snug'
             }`}
             title={product.name}
@@ -143,10 +155,10 @@ export default function ProductCard({
 
           {!compact && (
             <div className="text-[11px] text-zinc-400 mt-1.5 flex items-center justify-between">
-              <span>4 Stores Compared</span>
+              <span>{product.category} • 4 Stores</span>
               <button
                 onClick={() => onOpenReporter && onOpenReporter(product)}
-                className="text-zinc-400 hover:text-cyan-400 underline cursor-pointer"
+                className="text-[#C0C0C8] hover:text-[#FF2A2A] underline cursor-pointer"
               >
                 Fix Info
               </button>
@@ -155,14 +167,10 @@ export default function ProductCard({
         </div>
       </div>
 
-      <div
-        className={`border-t px-3.5 sm:px-4 py-3 flex flex-col gap-2.5 ${
-          isLight ? 'border-zinc-200' : 'border-white/10'
-        }`}
-      >
+      <div className="border-t border-white/10 px-3.5 sm:px-4 py-3 flex flex-col gap-2.5 bg-[#0E0E12]/60">
         <div className="flex items-baseline justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="font-bold text-base sm:text-lg text-[#D4AF37]">
+            <span className="font-bold text-base sm:text-lg text-white">
               ₹{Number(product.price_inr).toLocaleString('en-IN')}
             </span>
             {product.mrp_inr && product.mrp_inr > product.price_inr && (
@@ -172,7 +180,7 @@ export default function ProductCard({
             )}
           </div>
           {discount && (
-            <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] sm:text-[11px] font-bold text-[#FF2A2A] bg-[#FF2A2A]/15 border border-[#FF2A2A]/30 px-2 py-0.5 rounded-full">
               {discount}% OFF
             </span>
           )}
@@ -180,14 +188,13 @@ export default function ProductCard({
 
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => onOpenAnalytics && onOpenAnalytics(product)}
-            className={`py-2 px-2 rounded-xl font-semibold text-xs border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              isLight
-                ? 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:border-[#D4AF37]'
-                : 'bg-white/5 border-white/15 text-zinc-200 hover:border-[#D4AF37] hover:text-[#D4AF37]'
-            }`}
+            onClick={() => {
+              if (onProductInteract) onProductInteract(product);
+              if (onOpenAnalytics) onOpenAnalytics(product);
+            }}
+            className="py-2 px-2 rounded-xl font-semibold text-xs border border-[#C0C0C8]/30 bg-white/5 text-[#E2E8F0] hover:border-white hover:bg-white/10 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
-            <BarChart2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+            <BarChart2 className="w-3.5 h-3.5 text-[#C0C0C8] shrink-0" />
             <span className="truncate">{compact ? 'Graph' : 'Compare'}</span>
           </button>
 
@@ -195,7 +202,8 @@ export default function ProductCard({
             href={liveRedirectUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="py-2 px-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#C5A059] text-black hover:brightness-110 transition-all flex items-center justify-center gap-1 shadow-sm"
+            onClick={() => onProductInteract && onProductInteract(product)}
+            className="py-2 px-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#FF2A2A] to-[#D91B1B] text-white hover:brightness-110 transition-all flex items-center justify-center gap-1 shadow-md shadow-[#FF2A2A]/20"
           >
             <span className="truncate">Buy Now</span>
             <ExternalLink className="w-3.5 h-3.5 shrink-0" />
