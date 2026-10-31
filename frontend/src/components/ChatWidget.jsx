@@ -12,8 +12,7 @@ import {
   Sparkles,
   Mic,
   ShieldCheck,
-  Database,
-  Brain
+  Database
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import ProductCard from './ProductCard';
@@ -50,8 +49,7 @@ export default function ChatWidget({
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      mode: 'system_ready',
-      content: `Namaste${userName}! ✨ Welcome to the **Khojo AI Central Conversational Hub**.\n\nThis system **answers repetitive questions** (*"What is your return policy?"*, *"Do you support COD?"*), **searches through live inventory data**, and **makes personalized ML product recommendations** across Amazon India, Flipkart, Myntra & Nykaa.`,
+      content: `Namaste${userName}! ✨ Welcome to the **Khojo AI Concierge Hub**.\n\nAsk me about store policies (*"What is your return policy?"*, *"Do you support COD?"*), search live inventory across Amazon India, Flipkart, Myntra & Nykaa, or get tailored product recommendations.`,
       products: []
     }
   ]);
@@ -86,7 +84,6 @@ export default function ChatWidget({
     setMessages([
       {
         role: 'assistant',
-        mode: 'system_ready',
         content: `Conversation reset${userName}! Ask a store policy question or tell me what product you want me to scan across our inventory.`,
         products: []
       }
@@ -122,6 +119,7 @@ export default function ChatWidget({
         body: JSON.stringify({
           message: query,
           history: historyPayload,
+          user_profile: mlProfile,
           website_hp: websiteHp
         })
       });
@@ -129,9 +127,9 @@ export default function ChatWidget({
       if (!res.ok) throw new Error('Backend error');
       const data = await res.json();
 
-      // Re-rank returned inventory using the user's ML profile
+      // Silently sort returned products using background personalization weights
       const rawProducts = data.products || [];
-      const mlRankedProducts = [...rawProducts].sort(
+      const rankedProducts = [...rawProducts].sort(
         (a, b) =>
           scoreProductForUser(b, mlProfile) - scoreProductForUser(a, mlProfile)
       );
@@ -140,9 +138,8 @@ export default function ChatWidget({
         ...prev,
         {
           role: 'assistant',
-          mode: data.mode_used || 'ml_agent',
           content: data.reply,
-          products: mlRankedProducts
+          products: rankedProducts
         }
       ]);
     } catch {
@@ -150,7 +147,6 @@ export default function ChatWidget({
         ...prev,
         {
           role: 'assistant',
-          mode: 'offline_notice',
           content:
             'Our Render AI server is waking up from sleep mode. Please wait 10 seconds and send your message again!',
           products: []
@@ -161,7 +157,6 @@ export default function ChatWidget({
     }
   };
 
-  // Floating Widget Minimized / Closed states (only when not embedded)
   if (!embedded && windowState === 'closed') {
     return (
       <div className="fixed bottom-5 right-5 z-40">
@@ -209,7 +204,7 @@ export default function ChatWidget({
   const isMax = !embedded && windowState === 'maximized';
 
   const containerClasses = embedded
-    ? 'w-full max-w-5xl mx-auto rounded-3xl bg-[#141419]/95 border border-[#C0C0C8]/25 shadow-2xl shadow-black/80 overflow-hidden flex flex-col h-[640px]'
+    ? 'w-full max-w-5xl mx-auto rounded-3xl bg-[#141419]/95 border border-[#C0C0C8]/25 shadow-2xl shadow-black/80 overflow-hidden flex flex-col h-[620px]'
     : `fixed z-40 transition-all duration-300 ${
         isMax
           ? 'inset-3 sm:inset-6'
@@ -219,25 +214,19 @@ export default function ChatWidget({
   return (
     <div className={containerClasses}>
       <div className="w-full h-full bg-[#121216]/95 backdrop-blur-2xl rounded-3xl border border-[#C0C0C8]/25 flex flex-col overflow-hidden text-[#E2E8F0]">
-        {/* Header */}
         <div className="bg-gradient-to-r from-[#16161C] via-[#241316] to-[#16161C] border-b border-[#C0C0C8]/20 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl overflow-hidden border border-[#FF2A2A]/60 shrink-0 shadow-md shadow-[#FF2A2A]/20">
               <img src="/favicon.ico" alt="Khojo AI" className="w-full h-full object-cover" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h4 className="font-harmond text-xl sm:text-2xl font-bold tracking-wide text-white leading-none">
-                  Khojo AI Conversational Hub
-                </h4>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#FF2A2A]/20 text-[#FF2A2A] border border-[#FF2A2A]/40">
-                  <Brain className="w-3 h-3" /> ML Active
-                </span>
-              </div>
+              <h4 className="font-harmond text-xl sm:text-2xl font-bold tracking-wide text-white leading-none">
+                Khojo AI Concierge
+              </h4>
               <div className="flex items-center gap-3 text-[10px] text-[#C0C0C8] mt-1">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Policy Engine
+                  Instant Support
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
@@ -245,7 +234,7 @@ export default function ChatWidget({
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#C0C0C8]" /> Personalized ML
+                  <ShieldCheck className="w-3 h-3 text-[#C0C0C8]" /> Smart Picks
                 </span>
               </div>
             </div>
@@ -284,7 +273,6 @@ export default function ChatWidget({
           </div>
         </div>
 
-        {/* Messages Stream */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#0D0D11]">
           {messages.map((msg, idx) => (
             <div
@@ -313,7 +301,7 @@ export default function ChatWidget({
                     <div className="flex items-center justify-between text-[11px] text-[#C0C0C8] px-1">
                       <span className="flex items-center gap-1.5 font-semibold text-white">
                         <Sparkles className="w-3.5 h-3.5 text-[#FF2A2A]" />
-                        ML-Ranked Inventory Recommendations ({msg.products.length})
+                        Top Matching Products ({msg.products.length})
                       </span>
                       <span>Click Compare for 6-Month Graph</span>
                     </div>
@@ -323,7 +311,6 @@ export default function ChatWidget({
                           key={prod.id}
                           product={prod}
                           compact={true}
-                          mlMatchScore={scoreProductForUser(prod, mlProfile)}
                           isWishlisted={wishlist.some((w) => w.id === prod.id)}
                           onToggleWishlist={() => toggleWishlist && toggleWishlist(prod)}
                           onOpenAnalytics={onOpenAnalytics}
@@ -350,13 +337,12 @@ export default function ChatWidget({
           {loading && (
             <div className="flex items-center gap-2 text-xs text-[#FF2A2A] pl-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Scanning inventory data & applying your ML preference weights...</span>
+              <span>Khojo AI is scanning live inventory across India...</span>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Repetitive FAQ & ML Discovery Prompt Pills */}
         <div className="px-4 py-2.5 bg-[#14141A] border-t border-[#C0C0C8]/15 flex gap-2 overflow-x-auto no-scrollbar">
           {QUICK_PROMPTS.map((item) => (
             <button
@@ -369,7 +355,6 @@ export default function ChatWidget({
           ))}
         </div>
 
-        {/* Chat Input Bar */}
         <form
           onSubmit={(e) => {
             e.preventDefault();

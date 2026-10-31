@@ -17,9 +17,9 @@ import { API_BASE_URL } from '../config';
 const PLATFORMS = ['Amazon India', 'Flipkart', 'Myntra', 'Nykaa'];
 
 const COUPONS = [
-  { code: 'KHOJOGOLD10', desc: 'Extra 10% OFF via Luxury UPI Checkout', savings: '₹450' },
-  { code: 'HATKEDEAL500', desc: 'Flat ₹500 Instant Bank Discount on Cards', savings: '₹500' },
-  { code: 'FIRSTLUXE', desc: 'Free Priority Express Shipping + 5% Cashback', savings: '₹250' }
+  { code: 'KHOJORED10', desc: 'Extra 10% OFF via Signal Red UPI Checkout', savings: '₹450' },
+  { code: 'SILVERDEAL500', desc: 'Flat ₹500 Instant Bank Discount on Cards', savings: '₹500' },
+  { code: 'FIRSTKHOJO', desc: 'Free Priority Express Shipping + 5% Cashback', savings: '₹250' }
 ];
 
 function getSeed(str = '') {
@@ -33,7 +33,6 @@ function getSeed(str = '') {
 export default function PriceAnalyticsModal({
   product,
   onClose,
-  themeMode = 'obsidian',
   onSaveAlert
 }) {
   if (!product) return null;
@@ -112,8 +111,6 @@ export default function PriceAnalyticsModal({
     })
     .join(' ');
 
-  const isLight = themeMode === 'ivory';
-
   const handleCopy = (code) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
@@ -137,22 +134,16 @@ export default function PriceAnalyticsModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div
-        className={`relative w-full max-w-4xl rounded-3xl border overflow-hidden shadow-2xl transition-all ${
-          isLight
-            ? 'bg-[#FAF8F5] border-[#D4AF37]/40 text-zinc-900'
-            : 'bg-[#0B0B0E] border-[#D4AF37]/40 text-zinc-100 shadow-[#D4AF37]/10'
-        }`}
-      >
-        <div className="bg-gradient-to-r from-[#141419] via-[#1E1B14] to-[#141419] border-b border-[#D4AF37]/30 px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+      <div className="card-3d-shell relative w-full max-w-4xl rounded-3xl border border-[#C0C0C8]/30 bg-[#121216] text-[#E2E8F0] overflow-hidden shadow-2xl">
+        <div className="bg-gradient-to-r from-[#16161C] via-[#261215] to-[#16161C] border-b border-[#C0C0C8]/20 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="p-2 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[#D4AF37]">
+            <span className="p-2 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-[#FF2A2A]">
               <BarChart3 className="w-5 h-5" />
             </span>
             <div>
-              <span className="text-[10px] uppercase tracking-[0.25em] text-[#D4AF37] font-semibold block">
-                Khojo AI • BuyHatke Intelligence Engine
+              <span className="text-[10px] uppercase tracking-[0.25em] text-[#C0C0C8] font-semibold block">
+                Khojo AI • 4-Store Price Intelligence Engine
               </span>
               <h3 className="font-harmond text-2xl font-bold text-white tracking-wide line-clamp-1">
                 {product.name}
@@ -161,31 +152,31 @@ export default function PriceAnalyticsModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-white/5 hover:bg-[#D4AF37]/20 text-zinc-400 hover:text-[#D4AF37] transition-colors cursor-pointer"
+            className="p-2 rounded-full bg-white/5 hover:bg-[#FF2A2A]/20 text-[#C0C0C8] hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[82vh] overflow-y-auto">
-          <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 flex flex-col justify-between">
+          <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-[#C0C0C8]/15 flex flex-col justify-between">
             <div>
-              <div className="relative h-48 rounded-2xl overflow-hidden bg-zinc-900 border border-white/10 mb-4">
+              <div className="relative h-48 rounded-2xl overflow-hidden bg-zinc-950 border border-[#C0C0C8]/20 mb-4">
                 <img
                   src={product.image_url}
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md border border-[#D4AF37]/50 text-[#D4AF37] px-3 py-1 rounded-full text-xs font-semibold">
+                <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md border border-[#C0C0C8]/40 text-white px-3 py-1 rounded-full text-xs font-semibold">
                   {product.brand}
                 </div>
-                <div className="absolute bottom-3 right-3 bg-emerald-500/90 text-black font-bold px-2.5 py-1 rounded-lg text-xs">
+                <div className="absolute bottom-3 right-3 bg-[#FF2A2A] text-white font-bold px-2.5 py-1 rounded-lg text-xs shadow">
                   Lowest: ₹{lowestStore.price.toLocaleString('en-IN')}
                 </div>
               </div>
 
               <div className="mb-4">
-                <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">
+                <div className="text-xs uppercase tracking-widest text-[#C0C0C8] mb-1">
                   Compare {storeComparisons.length} Available Stores
                 </div>
                 <div className="space-y-2.5 mt-3">
@@ -197,31 +188,29 @@ export default function PriceAnalyticsModal({
                       rel="noopener noreferrer"
                       className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
                         st.isBestPrice
-                          ? 'bg-gradient-to-r from-[#D4AF37]/20 to-transparent border-[#D4AF37] shadow-sm'
-                          : isLight
-                          ? 'bg-white border-zinc-200 hover:border-[#D4AF37]'
-                          : 'bg-zinc-900/70 border-white/10 hover:border-[#D4AF37]/50'
+                          ? 'bg-gradient-to-r from-[#FF2A2A]/20 to-transparent border-[#FF2A2A] shadow-sm'
+                          : 'bg-[#18181F] border-[#C0C0C8]/15 hover:border-[#C0C0C8]/50'
                       }`}
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{st.platform}</span>
+                          <span className="font-semibold text-sm text-white">{st.platform}</span>
                           {st.isBestPrice && (
-                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#D4AF37] text-black">
+                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#FF2A2A] text-white">
                               Best Price
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-zinc-400 block mt-0.5">
+                        <span className="text-[11px] text-[#C0C0C8] block mt-0.5">
                           {st.delivery}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-base text-[#D4AF37]">
+                        <span className="font-bold text-base text-white">
                           ₹{st.price.toLocaleString('en-IN')}
                         </span>
-                        <ExternalLink className="w-4 h-4 text-zinc-400" />
+                        <ExternalLink className="w-4 h-4 text-[#C0C0C8]" />
                       </div>
                     </a>
                   ))}
@@ -231,33 +220,27 @@ export default function PriceAnalyticsModal({
 
             <form
               onSubmit={handleCreateAlert}
-              className={`p-4 rounded-2xl border ${
-                isLight ? 'bg-zinc-100 border-zinc-300' : 'bg-zinc-900/80 border-white/10'
-              }`}
+              className="p-4 rounded-2xl bg-[#18181F] border border-[#C0C0C8]/20"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-[#D4AF37]">
+                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-[#FF2A2A]">
                   <Bell className="w-3.5 h-3.5" /> Set Price Drop Alert
                 </span>
-                <span className="text-[11px] text-zinc-400">Instant Browser Alert</span>
+                <span className="text-[11px] text-[#C0C0C8]">Instant Browser Alert</span>
               </div>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-2 text-xs text-zinc-400">₹</span>
+                  <span className="absolute left-3 top-2 text-xs text-[#C0C0C8]">₹</span>
                   <input
                     type="number"
                     value={targetPrice}
                     onChange={(e) => setTargetPrice(e.target.value)}
-                    className={`w-full pl-7 pr-3 py-1.5 rounded-xl text-sm font-semibold border focus:outline-none focus:border-[#D4AF37] ${
-                      isLight
-                        ? 'bg-white border-zinc-300 text-zinc-900'
-                        : 'bg-black border-white/15 text-white'
-                    }`}
+                    className="w-full pl-7 pr-3 py-1.5 rounded-xl text-sm font-semibold bg-[#0E0E12] border border-[#C0C0C8]/25 text-white focus:outline-none focus:border-[#FF2A2A]"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-[#D4AF37] to-[#AA8220] text-black hover:brightness-110 transition-all cursor-pointer"
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-[#FF2A2A] text-white hover:brightness-110 transition-all cursor-pointer"
                 >
                   {alertSaved ? 'Alert Active ✓' : 'Track Price'}
                 </button>
@@ -267,10 +250,10 @@ export default function PriceAnalyticsModal({
 
           <div className="lg:col-span-7 p-6 flex flex-col justify-between">
             <div>
-              <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-zinc-900/90 border border-white/10 mb-6">
+              <div className="grid grid-cols-3 gap-2 p-1 rounded-2xl bg-[#18181F] border border-[#C0C0C8]/20 mb-6">
                 {[
                   { id: 'scanner', label: 'Deal Scanner', icon: Award },
-                  { id: 'graph', label: 'Price Drop Graph', icon: TrendingDown },
+                  { id: 'graph', label: '6-Month Graph', icon: TrendingDown },
                   { id: 'coupons', label: 'Auto Coupons', icon: Tag }
                 ].map((tab) => {
                   const Icon = tab.icon;
@@ -280,8 +263,8 @@ export default function PriceAnalyticsModal({
                       onClick={() => setActiveTab(tab.id)}
                       className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#B68D2C] text-black shadow-md'
-                          : 'text-zinc-400 hover:text-white'
+                          ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-md'
+                          : 'text-[#C0C0C8] hover:text-white'
                       }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
@@ -293,15 +276,15 @@ export default function PriceAnalyticsModal({
 
               {activeTab === 'scanner' && (
                 <div className="space-y-5 animate-fadeIn">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-br from-[#171510] to-[#0D0D11] border border-[#D4AF37]/30">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-br from-[#1D1416] to-[#121216] border border-[#C0C0C8]/25">
                     <div className="space-y-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        <Sparkles className="w-3.5 h-3.5" /> Epic Khojo Steal 🚀
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FF2A2A]/20 text-[#FF2A2A] border border-[#FF2A2A]/40">
+                        <Sparkles className="w-3.5 h-3.5" /> Signal Red Verified Steal 🚀
                       </span>
                       <h4 className="font-harmond text-3xl font-bold text-white">
                         Lowest Price Recorded
                       </h4>
-                      <p className="text-xs text-zinc-400 max-w-sm">
+                      <p className="text-xs text-[#C0C0C8] max-w-sm">
                         We analyzed 180 days of historical pricing across 4 Indian marketplaces. Now is the optimal time to buy.
                       </p>
                     </div>
@@ -319,7 +302,7 @@ export default function PriceAnalyticsModal({
                           <path
                             d="M 15 60 A 45 45 0 0 1 105 60"
                             fill="none"
-                            stroke="#D4AF37"
+                            stroke="#FF2A2A"
                             strokeWidth="10"
                             strokeDasharray="141"
                             strokeDashoffset={141 - (141 * dealScore) / 100}
@@ -327,10 +310,10 @@ export default function PriceAnalyticsModal({
                           />
                         </svg>
                         <div className="absolute bottom-0 text-center">
-                          <span className="font-harmond text-3xl font-extrabold text-[#D4AF37]">
+                          <span className="font-harmond text-3xl font-extrabold text-white">
                             {dealScore}
                           </span>
-                          <span className="text-[10px] text-zinc-400 block uppercase tracking-widest">
+                          <span className="text-[10px] text-[#C0C0C8] block uppercase tracking-widest">
                             Deal Score
                           </span>
                         </div>
@@ -338,8 +321,8 @@ export default function PriceAnalyticsModal({
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 p-4 space-y-3 bg-zinc-900/40">
-                    <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-zinc-400 border-b border-white/10 pb-2">
+                  <div className="rounded-2xl border border-[#C0C0C8]/15 p-4 space-y-3 bg-[#18181F]">
+                    <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#C0C0C8] border-b border-white/10 pb-2">
                       <span>Deal Score Breakup</span>
                       <span>Pts</span>
                     </div>
@@ -361,11 +344,11 @@ export default function PriceAnalyticsModal({
                       { label: '100% Verified Original Brand Warranty', pts: 8 }
                     ].map((row, idx) => (
                       <div key={idx} className="flex items-center justify-between text-xs sm:text-sm">
-                        <span className="text-zinc-300 flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="text-[#E2E8F0] flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#FF2A2A]" />
                           {row.label}
                         </span>
-                        <span className="font-bold text-[#D4AF37]">+{row.pts}</span>
+                        <span className="font-bold text-[#FF2A2A]">+{row.pts}</span>
                       </div>
                     ))}
                   </div>
@@ -375,47 +358,47 @@ export default function PriceAnalyticsModal({
               {activeTab === 'graph' && (
                 <div className="space-y-4 animate-fadeIn">
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 rounded-xl bg-zinc-900/80 border border-white/10">
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-400 block">
+                    <div className="p-3 rounded-xl bg-[#18181F] border border-[#C0C0C8]/20">
+                      <span className="text-[10px] uppercase tracking-wider text-[#C0C0C8] block">
                         All-Time Low
                       </span>
                       <span className="text-base font-bold text-emerald-400">
                         ₹{minGraphPrice.toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <div className="p-3 rounded-xl bg-zinc-900/80 border border-white/10">
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-400 block">
+                    <div className="p-3 rounded-xl bg-[#18181F] border border-[#C0C0C8]/20">
+                      <span className="text-[10px] uppercase tracking-wider text-[#C0C0C8] block">
                         6-Month Average
                       </span>
-                      <span className="text-base font-bold text-[#D4AF37]">
+                      <span className="text-base font-bold text-white">
                         ₹{avgGraphPrice.toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <div className="p-3 rounded-xl bg-zinc-900/80 border border-white/10">
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-400 block">
+                    <div className="p-3 rounded-xl bg-[#18181F] border border-[#C0C0C8]/20">
+                      <span className="text-[10px] uppercase tracking-wider text-[#C0C0C8] block">
                         Highest Recorded
                       </span>
-                      <span className="text-base font-bold text-rose-400">
+                      <span className="text-base font-bold text-[#FF2A2A]">
                         ₹{maxGraphPrice.toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[#070709] border border-[#D4AF37]/30">
+                  <div className="p-4 rounded-2xl bg-[#0D0D10] border border-[#C0C0C8]/25">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-zinc-300">
+                      <span className="text-xs font-semibold text-[#E2E8F0]">
                         6-Month Price Trajectory (Jun – Nov 2026)
                       </span>
-                      <span className="text-[11px] text-[#D4AF37] font-semibold">
+                      <span className="text-[11px] text-[#FF2A2A] font-semibold">
                         Live Khojo Curve
                       </span>
                     </div>
 
                     <svg viewBox="0 0 520 175" className="w-full h-44 overflow-visible">
                       <defs>
-                        <linearGradient id="goldArea" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.45" />
-                          <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.0" />
+                        <linearGradient id="redArea" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#FF2A2A" stopOpacity="0.45" />
+                          <stop offset="100%" stopColor="#FF2A2A" stopOpacity="0.0" />
                         </linearGradient>
                       </defs>
 
@@ -434,12 +417,12 @@ export default function PriceAnalyticsModal({
 
                       <polygon
                         points={`40,150 ${svgPoints} 480,150`}
-                        fill="url(#goldArea)"
+                        fill="url(#redArea)"
                       />
 
                       <polyline
                         fill="none"
-                        stroke="#D4AF37"
+                        stroke="#FF2A2A"
                         strokeWidth="3"
                         points={svgPoints}
                       />
@@ -456,15 +439,15 @@ export default function PriceAnalyticsModal({
                               cx={x}
                               cy={y}
                               r="5"
-                              fill="#070709"
-                              stroke="#D4AF37"
+                              fill="#121215"
+                              stroke="#FF2A2A"
                               strokeWidth="3"
                             />
                             <text
                               x={x}
                               y={y - 10}
                               textAnchor="middle"
-                              fill="#E2E8F0"
+                              fill="#FFFFFF"
                               fontSize="10"
                               fontWeight="bold"
                             >
@@ -474,7 +457,7 @@ export default function PriceAnalyticsModal({
                               x={x}
                               y="168"
                               textAnchor="middle"
-                              fill="#94A3B8"
+                              fill="#C0C0C8"
                               fontSize="10"
                             >
                               {pt.month}
@@ -489,29 +472,29 @@ export default function PriceAnalyticsModal({
 
               {activeTab === 'coupons' && (
                 <div className="space-y-3 animate-fadeIn">
-                  <p className="text-xs text-zinc-400">
-                    Click any verified luxury coupon below to copy and apply at checkout:
+                  <p className="text-xs text-[#C0C0C8]">
+                    Click any verified coupon below to copy and apply at checkout:
                   </p>
                   {COUPONS.map((cp) => (
                     <div
                       key={cp.code}
-                      className="p-4 rounded-2xl border border-[#D4AF37]/30 bg-zinc-900/60 flex items-center justify-between gap-4"
+                      className="p-4 rounded-2xl border border-[#C0C0C8]/25 bg-[#18181F] flex items-center justify-between gap-4"
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-[#D4AF37] px-2.5 py-0.5 rounded bg-[#D4AF37]/10 border border-[#D4AF37]/30">
+                          <span className="font-mono text-sm font-bold text-[#FF2A2A] px-2.5 py-0.5 rounded bg-[#FF2A2A]/15 border border-[#FF2A2A]/40">
                             {cp.code}
                           </span>
                           <span className="text-xs font-semibold text-emerald-400">
                             Save {cp.savings}
                           </span>
                         </div>
-                        <p className="text-xs text-zinc-300 mt-1">{cp.desc}</p>
+                        <p className="text-xs text-[#E2E8F0] mt-1">{cp.desc}</p>
                       </div>
 
                       <button
                         onClick={() => handleCopy(cp.code)}
-                        className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-[#D4AF37] hover:text-black text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-[#FF2A2A] text-white text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
                       >
                         {copiedCode === cp.code ? (
                           <>
@@ -530,8 +513,8 @@ export default function PriceAnalyticsModal({
             </div>
 
             <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
-                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+              <div className="flex items-center gap-2 text-xs text-[#C0C0C8]">
+                <ShieldCheck className="w-4 h-4 text-[#FF2A2A]" />
                 <span>Verified Authentic • Price Checked Just Now</span>
               </div>
 
@@ -539,7 +522,7 @@ export default function PriceAnalyticsModal({
                 href={lowestStore.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#C5A059] text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:brightness-110 transition-all"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-[#FF2A2A]/25 hover:brightness-110 transition-all"
               >
                 Buy Best Deal on {lowestStore.platform} (₹{lowestStore.price.toLocaleString('en-IN')})
                 <ExternalLink className="w-4 h-4" />

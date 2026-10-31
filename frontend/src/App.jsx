@@ -4,21 +4,15 @@ import {
   Heart,
   Search,
   Sparkles,
-  TrendingDown,
-  Bell,
-  Layers,
   SlidersHorizontal,
   Wrench,
   Menu,
   X,
-  Shield,
   Mic,
   Scale,
   Lock,
   Bot,
-  User,
-  Brain,
-  ShoppingBag
+  User
 } from 'lucide-react';
 import { API_BASE_URL } from './config';
 import ProductCard from './components/ProductCard';
@@ -37,26 +31,16 @@ import { VersusModal, AdminPanelModal } from './components/AdvancedFeatures';
 import {
   getMLProfile,
   recordUserInteraction,
-  scoreProductForUser,
-  getTopUserInterests
+  scoreProductForUser
 } from './utils/mlEngine';
 
 const CATEGORIES = ['All', 'Footwear', 'Beauty', 'Electronics', 'Apparel', 'Accessories'];
 
-const PALETTE_MODES = [
-  { id: 'charcoal', label: 'Charcoal Red' },
-  { id: 'silver', label: 'Moonlit Silver' },
-  { id: 'ivory', label: 'Editorial Light' }
-];
-
 export default function App() {
   const [booting, setBooting] = useState(true);
-
-  // Navigation Views: 'home' (Central Chatbot + ML Feed) | 'chat' (Full AI Hub) | 'profile' | 'wishlist' | 'privacy' | 'terms' | '404'
   const [activePage, setActivePage] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // User Auth & ML Personalization State
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('khojo_user');
@@ -68,20 +52,16 @@ export default function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [mlProfile, setMlProfile] = useState(() => getMLProfile());
 
-  // Catalog & Search States
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchingLive, setFetchingLive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('ml_recommended');
+  const [sortBy, setSortBy] = useState('recommended');
   const [isListening, setIsListening] = useState(false);
 
-  const [themeMode, setThemeMode] = useState(() => {
-    return localStorage.getItem('khojo_theme') || 'charcoal';
-  });
+  const [themeMode] = useState('charcoal');
 
-  // Modals
   const [activeAnalyticsProduct, setActiveAnalyticsProduct] = useState(null);
   const [reporterTargetProduct, setReporterTargetProduct] = useState(null);
   const [isReporterOpen, setIsReporterOpen] = useState(false);
@@ -109,10 +89,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('khojo_theme', themeMode);
-  }, [themeMode]);
-
-  useEffect(() => {
     localStorage.setItem('khojo_wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
 
@@ -120,6 +96,7 @@ export default function App() {
     localStorage.setItem('khojo_price_alerts', JSON.stringify(priceAlerts));
   }, [priceAlerts]);
 
+  // Silent background tracking
   const handleRecordInteraction = (payload) => {
     const updated = recordUserInteraction(payload);
     setMlProfile({ ...updated });
@@ -221,7 +198,7 @@ export default function App() {
     fetchProducts();
   }, [selectedCategory]);
 
-  // Filter & ML-Rank Inventory
+  // Invisible Background Ranking
   const displayedProducts = useMemo(() => {
     const baseList = activePage === 'wishlist' ? wishlist : products;
 
@@ -263,7 +240,7 @@ export default function App() {
     });
 
     const sorted = [...filtered];
-    if (sortBy === 'ml_recommended') {
+    if (sortBy === 'recommended') {
       sorted.sort(
         (a, b) =>
           scoreProductForUser(b, mlProfile) - scoreProductForUser(a, mlProfile)
@@ -278,18 +255,6 @@ export default function App() {
     return sorted;
   }, [activePage, wishlist, products, searchQuery, sortBy, mlProfile]);
 
-  const userInterests = useMemo(() => getTopUserInterests(mlProfile), [mlProfile]);
-
-  const isLight = themeMode === 'ivory';
-  const isSilver = themeMode === 'silver';
-
-  const rootBg = isLight
-    ? 'bg-[#F5F5F7] text-zinc-900'
-    : isSilver
-    ? 'bg-[#1C1D22] text-[#E2E8F0]'
-    : 'bg-[#121215] text-[#E2E8F0]';
-
-  // 3D Charcoal + Moonlit Silver + Signal Red Splash Loader
   if (booting) {
     return (
       <div className="fixed inset-0 z-50 bg-[#121215] flex flex-col items-center justify-center p-6 text-center">
@@ -305,7 +270,7 @@ export default function App() {
           </span>
         </h1>
         <p className="text-[11px] uppercase tracking-[0.28em] text-[#C0C0C8] mt-2">
-          Loading Conversational AI & ML Inventory Engine...
+          Initializing Price Intelligence Vault...
         </p>
         <div className="w-48 h-1 rounded-full bg-zinc-800 overflow-hidden mt-5">
           <div className="h-full w-full bg-gradient-to-r from-[#C0C0C8] via-[#FF2A2A] to-[#C0C0C8] animate-pulse" />
@@ -315,11 +280,10 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${rootBg}`}>
-      {/* Sticky Header: Charcoal Grey + Moonlit Silver + Signal Red */}
+    <div className="min-h-screen flex flex-col bg-[#121215] text-[#E2E8F0]">
+      {/* Sticky Header */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#121215]/90 border-b border-[#C0C0C8]/20">
         <div className="max-w-7xl mx-auto px-3.5 sm:px-6 py-3.5 flex items-center justify-between gap-3">
-          {/* Logo */}
           <div
             className="flex items-center gap-3 sm:gap-4 cursor-pointer group"
             onClick={() => {
@@ -344,17 +308,17 @@ export default function App() {
                 </span>
               </h1>
               <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#C0C0C8] mt-0.5">
-                Charcoal • Moonlit Silver • Signal Red AI
+                Charcoal • Moonlit Silver • Signal Red
               </p>
             </div>
           </div>
 
-          {/* Center Navigation Tabs (Chatbot Hub Priority) */}
+          {/* Center Navigation Tabs */}
           <div className="hidden md:flex items-center p-1 rounded-2xl bg-[#1A1A20] border border-[#C0C0C8]/20">
             {[
               { id: 'home', label: 'AI Hub & Storefront', icon: Sparkles },
               { id: 'chat', label: 'Full-Screen Chatbot', icon: Bot },
-              { id: 'profile', label: 'ML Profile', icon: Brain }
+              { id: 'profile', label: 'My Account', icon: User }
             ].map((nav) => {
               const Icon = nav.icon;
               const active = activePage === nav.id;
@@ -375,7 +339,7 @@ export default function App() {
             })}
           </div>
 
-          {/* Right Controls: Login / Profile + Versus + Report + Wishlist */}
+          {/* Right Controls */}
           <div className="flex items-center gap-2">
             <button
               onClick={openVersusBattle}
@@ -393,7 +357,6 @@ export default function App() {
               <span>Report Fix</span>
             </button>
 
-            {/* User Login / Profile Trigger */}
             {user ? (
               <button
                 onClick={() => setActivePage('profile')}
@@ -441,14 +404,13 @@ export default function App() {
           </div>
         </div>
 
-        {/* Mobile Drawer */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-[#C0C0C8]/20 bg-[#141418] px-4 py-4 space-y-3 animate-fadeIn">
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'home', label: 'AI Hub' },
                 { id: 'chat', label: 'Full Chat' },
-                { id: 'profile', label: 'ML Profile' }
+                { id: 'profile', label: 'Account' }
               ].map((t) => (
                 <button
                   key={t.id}
@@ -470,7 +432,7 @@ export default function App() {
         )}
       </header>
 
-      {/* Route Views */}
+      {/* Main Content Router */}
       {activePage === 'privacy' ? (
         <PrivacyPolicyPage onBack={() => setActivePage('home')} themeMode={themeMode} />
       ) : activePage === 'terms' ? (
@@ -508,7 +470,6 @@ export default function App() {
         </div>
       ) : (
         <>
-          {/* HERO SECTION WITH 3D WEBGL-STYLE CANVAS & CENTRAL CONVERSATIONAL HUB */}
           {activePage === 'home' && (
             <section className="relative overflow-hidden border-b border-[#C0C0C8]/20 py-10 sm:py-14 px-4 bg-gradient-to-b from-[#17171D] via-[#121216] to-[#0E0E12]">
               <Interactive3DBackground />
@@ -517,7 +478,7 @@ export default function App() {
                 <div className="text-center space-y-4">
                   <span className="inline-flex items-center gap-2 bg-[#1C1C24]/90 border border-[#C0C0C8]/30 text-[#E2E8F0] text-[10px] sm:text-xs font-semibold px-4 py-1.5 rounded-full tracking-widest uppercase">
                     <Sparkles className="w-3.5 h-3.5 text-[#FF2A2A]" />
-                    Chatbot-First Commerce • Instant Policy Engine • ML Product Ranking
+                    Conversational Shopping • 6-Month Price Graph • Versus Mode
                   </span>
 
                   <h2 className="font-harmond text-4xl sm:text-6xl font-bold tracking-tight leading-none text-white">
@@ -528,11 +489,11 @@ export default function App() {
                   </h2>
 
                   <p className="text-[#C0C0C8] text-xs sm:text-base max-w-2xl mx-auto">
-                    This system answers repetitive support questions, searches through live inventory data, and makes personalized Machine Learning product recommendations.
+                    Ask support questions, search live inventory across Amazon India, Flipkart, Myntra & Nykaa, and compare historical price graphs in one place.
                   </p>
                 </div>
 
-                {/* CENTRAL FOCUS: EMBEDDED CONVERSATIONAL AI COMMAND CENTER */}
+                {/* Central Conversational Hub */}
                 <ChatWidget
                   embedded={true}
                   user={user}
@@ -547,30 +508,23 @@ export default function App() {
             </section>
           )}
 
-          {/* PERSONALIZED ML INVENTORY & INTERACTIVE COMPARISON GRID */}
+          {/* Product Catalog Grid */}
           <main className="max-w-7xl mx-auto w-full px-3.5 sm:px-6 py-8 flex-1 space-y-6 animate-fadeIn">
-            {/* ML Personalization Status Bar */}
+            {/* Search & Versus Bar */}
             <div className="p-4 rounded-2xl bg-[#18181E] border border-[#C0C0C8]/20 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-[#FF2A2A]">
-                  <Brain className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-harmond text-xl font-bold text-white">
-                    {user ? `Recommended for ${user.name}` : 'ML Personalized Inventory Feed'}
-                  </h3>
-                  <p className="text-xs text-[#C0C0C8]">
-                    Prioritizing <strong>{userInterests.topCategory}</strong>
-                    {userInterests.recentKeywords.length > 0 &&
-                      ` & recent searches (${userInterests.recentKeywords
-                        .slice(0, 3)
-                        .map((k) => `"${k}"`)
-                        .join(', ')})`}
-                  </p>
-                </div>
+              <div>
+                <h3 className="font-harmond text-2xl font-bold text-white">
+                  {activePage === 'wishlist'
+                    ? 'My Saved Wishlist'
+                    : user
+                    ? `Curated Deals for ${user.name}`
+                    : 'Live Marketplace Catalog'}
+                </h3>
+                <p className="text-xs text-[#C0C0C8]">
+                  Compare real-time prices across Amazon India, Flipkart, Myntra & Nykaa
+                </p>
               </div>
 
-              {/* Instant Inventory Search & Voice Filter */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <div className="flex items-center flex-1 sm:w-72 px-3 py-2 rounded-xl bg-[#101014] border border-[#C0C0C8]/25">
                   <Search className="w-4 h-4 text-[#C0C0C8] mr-2 shrink-0" />
@@ -586,7 +540,9 @@ export default function App() {
                         });
                       }
                     }}
-                    placeholder="Filter inventory or speak..."
+                    placeholder={
+                      isListening ? 'Listening...' : 'Filter products or brands...'
+                    }
                     className="w-full bg-transparent text-xs text-white focus:outline-none"
                   />
                   <button
@@ -607,7 +563,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Category & ML Sort Bar */}
+            {/* Category & Sort Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                 {CATEGORIES.map((cat) => (
@@ -630,13 +586,13 @@ export default function App() {
 
               <div className="flex items-center justify-end gap-2 text-xs">
                 <SlidersHorizontal className="w-4 h-4 text-[#FF2A2A]" />
-                <span className="text-[#C0C0C8]">Rank By:</span>
+                <span className="text-[#C0C0C8]">Sort:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="px-3 py-2 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-white text-xs font-semibold focus:outline-none focus:border-[#FF2A2A]"
                 >
-                  <option value="ml_recommended">🧠 ML Personal Match</option>
+                  <option value="recommended">Recommended for You</option>
                   <option value="price_asc">Price: Low to High</option>
                   <option value="price_desc">Price: High to Low</option>
                   <option value="rating">Top Customer Rated</option>
@@ -644,18 +600,18 @@ export default function App() {
               </div>
             </div>
 
-            {/* Product Grid */}
+            {/* Product Cards */}
             {loading && activePage !== 'wishlist' ? (
               <div className="py-24 flex flex-col items-center justify-center text-[#FF2A2A] gap-3">
                 <Loader2 className="w-9 h-9 animate-spin" />
                 <p className="text-xs uppercase tracking-widest text-[#C0C0C8]">
-                  Scanning Live Inventory...
+                  Loading Live Inventory...
                 </p>
               </div>
             ) : displayedProducts.length === 0 ? (
               <div className="py-20 text-center text-[#C0C0C8] text-sm space-y-4">
                 <p className="max-w-md mx-auto">
-                  No local vault items matched "{searchQuery}". Want Khojo AI to scrape it live from Amazon, Flipkart, Myntra & Nykaa?
+                  No local items matched "{searchQuery}". Want Khojo AI to fetch it live from Amazon, Flipkart, Myntra & Nykaa?
                 </p>
                 {searchQuery && (
                   <div className="flex justify-center gap-3">
@@ -666,7 +622,7 @@ export default function App() {
                     >
                       {fetchingLive ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Scraping Stores...
+                          <Loader2 className="w-4 h-4 animate-spin" /> Fetching Live...
                         </>
                       ) : (
                         <>
@@ -689,7 +645,6 @@ export default function App() {
                   <ProductCard
                     key={prod.id}
                     product={prod}
-                    mlMatchScore={scoreProductForUser(prod, mlProfile)}
                     isWishlisted={wishlist.some((w) => w.id === prod.id)}
                     onToggleWishlist={() => toggleWishlist(prod)}
                     onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
@@ -713,7 +668,7 @@ export default function App() {
             <span className="font-harmond text-lg text-white font-bold">
               Khojo AI
             </span>
-            <span>© 2026 • Conversational AI & ML Price Intelligence Hub</span>
+            <span>© 2026 • Conversational AI & Price Intelligence Hub</span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold">
@@ -721,7 +676,7 @@ export default function App() {
               AI Hub
             </button>
             <button onClick={() => setActivePage('profile')} className="hover:text-white cursor-pointer">
-              ML Profile
+              My Account
             </button>
             <button onClick={() => setActivePage('privacy')} className="hover:text-white cursor-pointer">
               Privacy Policy
@@ -745,7 +700,6 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Login Modal */}
       {isLoginOpen && (
         <LoginModal
           onClose={() => setIsLoginOpen(false)}
@@ -756,7 +710,6 @@ export default function App() {
         />
       )}
 
-      {/* BuyHatke 6-Month Price Graph & 4-Store Comparison Modal */}
       {activeAnalyticsProduct && (
         <PriceAnalyticsModal
           product={activeAnalyticsProduct}
@@ -767,7 +720,6 @@ export default function App() {
         />
       )}
 
-      {/* Database Issue & Broken Link Fix Reporter Modal */}
       {isReporterOpen && (
         <FixReporterModal
           product={reporterTargetProduct}
@@ -776,7 +728,6 @@ export default function App() {
         />
       )}
 
-      {/* Side-by-Side Versus Battle Modal */}
       {isVersusOpen && (
         <VersusModal
           selectedProducts={versusProducts}
@@ -785,7 +736,6 @@ export default function App() {
         />
       )}
 
-      {/* Secret Admin Vault Modal */}
       {isAdminOpen && (
         <AdminPanelModal
           onClose={() => setIsAdminOpen(false)}

@@ -1,4 +1,4 @@
-// Behavioral Machine Learning & Personalization Engine for Khojo AI
+// Background Machine Learning Personalization Engine for Khojo AI
 const STORAGE_KEY = 'khojo_ml_profile';
 
 const DEFAULT_PROFILE = {
@@ -22,6 +22,23 @@ export function getMLProfile() {
 
 export function saveMLProfile(profile) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  try {
+    const rawUser = localStorage.getItem('khojo_user');
+    if (rawUser) {
+      const user = JSON.parse(rawUser);
+      if (user?.email) {
+        const apiBase =
+          import.meta.env.VITE_API_URL || 'https://khogo-ai.onrender.com';
+        fetch(`${apiBase}/api/auth/sync-ml`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user.email, ml_profile: profile })
+        }).catch(() => {});
+      }
+    }
+  } catch {
+    // Ignore background sync errors
+  }
 }
 
 export function resetMLProfile() {
@@ -29,7 +46,7 @@ export function resetMLProfile() {
   return DEFAULT_PROFILE;
 }
 
-// Train ML weights whenever the user searches, chats, or clicks a product
+// Train ML weights silently whenever the user searches, chats, or clicks a product
 export function recordUserInteraction({ type, query = '', product = null, category = '' }) {
   const profile = getMLProfile();
   profile.totalInteractions = (profile.totalInteractions || 0) + 1;
@@ -85,7 +102,6 @@ export function recordUserInteraction({ type, query = '', product = null, catego
       ].slice(0, 12);
     }
 
-    // Auto-boost category weights from query intent
     if (/shoe|sneaker|boot|clog|footwear|running/.test(qClean)) {
       profile.categories.Footwear = (profile.categories.Footwear || 1) + 4;
     }
@@ -104,7 +120,7 @@ export function recordUserInteraction({ type, query = '', product = null, catego
   return profile;
 }
 
-// Compute Personalized ML Score (0 - 99%) for a product
+// Compute personalized score for background product ranking
 export function scoreProductForUser(product, profile) {
   if (!product || !profile) return 80;
   let score = 72;

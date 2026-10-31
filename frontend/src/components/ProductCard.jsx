@@ -18,8 +18,7 @@ export default function ProductCard({
   onToggleWishlist,
   onOpenAnalytics,
   onOpenReporter,
-  onProductInteract,
-  mlMatchScore = 92
+  onProductInteract
 }) {
   const [tiltStyle, setTiltStyle] = useState({});
 
@@ -33,6 +32,8 @@ export default function ProductCard({
     product.mrp_inr && product.mrp_inr > product.price_inr
       ? Math.round(((product.mrp_inr - product.price_inr) / product.mrp_inr) * 100)
       : 18;
+
+  const dealScore = Math.min(99, Math.max(82, 76 + Math.round(discount * 0.5)));
 
   const liveRedirectUrl = `${API_BASE_URL}/api/redirect?name=${encodeURIComponent(
     product.name || ''
@@ -88,17 +89,16 @@ export default function ProductCard({
             {product.platform}
           </span>
 
-          {/* ML Match & Deal Score Pill */}
           <button
             onClick={() => {
               if (onProductInteract) onProductInteract(product);
               if (onOpenAnalytics) onOpenAnalytics(product);
             }}
-            title="Personalized ML Match & 6-Month Price Graph"
+            title="View Deal Score & 6-Month Price Graph"
             className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-[#C0C0C8]/40 text-[#E2E8F0] text-[10px] font-bold flex items-center gap-1 hover:border-[#FF2A2A] hover:text-[#FF2A2A] transition-all cursor-pointer"
           >
             <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
-            {mlMatchScore}% ML Match
+            Deal Score {dealScore}
           </button>
 
           <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">

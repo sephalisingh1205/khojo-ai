@@ -2,10 +2,12 @@ import os
 import json
 import re
 import time
+import hashlib
+import secrets
 import urllib.parse
 from typing import List, Optional, Dict, Any
 
-from fastapi import FastAPI, Query, Request, HTTPException
+from fastapi import FastAPI, Query, Request, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -41,8 +43,8 @@ MODEL_CHAIN = [
 # 3. Initialize FastAPI App
 app = FastAPI(
     title="Khojo AI Backend API",
-    description="Real-Time Indian E-Commerce Scraper, AI Auto-Categorizer & Smart Concierge",
-    version="4.0.0"
+    description="Auth, ML Personalization Engine, Live Scraper & Conversational Hub",
+    version="5.0.0"
 )
 
 app.add_middleware(
@@ -53,8 +55,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. In-Memory Spam & Rate Limit Protection
+# 4. In-Memory Rate Limit & Auth Session Stores
 RATE_LIMIT_STORE: Dict[str, List[float]] = {}
+ACTIVE_SESSIONS: Dict[str, Dict[str, Any]] = {}
+FALLBACK_USERS_DB: Dict[str, Dict[str, Any]] = {}
 
 def check_rate_limit(client_ip: str, max_requests: int = 15, window_sec: int = 60) -> bool:
     now = time.time()
@@ -67,7 +71,24 @@ def check_rate_limit(client_ip: str, max_requests: int = 15, window_sec: int = 6
     RATE_LIMIT_STORE[client_ip] = timestamps
     return True
 
+def hash_password(password: str) -> str:
+    return hashlib.sha256(f"khojo_salt_{password}".encode("utf-8")).hexdigest()
+
 # 5. Pydantic Schemas
+class AuthSignupRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    ml_profile: Optional[Dict[str, Any]] = {}
+
+class AuthLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class MLSyncRequest(BaseModel):
+    email: str
+    ml_profile: Dict[str, Any]
+
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -75,6 +96,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[ChatMessage]] = []
+    user_profile: Optional[Dict[str, Any]] = None
     website_hp: Optional[str] = ""
 
 class ChatResponse(BaseModel):
@@ -91,7 +113,128 @@ class IssueReportRequest(BaseModel):
     user_contact: Optional[str] = ""
     website_hp: Optional[str] = ""
 
-# 6. Store Policies & Intent Classification
+# =====================================================================
+# 6. AUTHENTICATION ENDPOINTS (SIGNUP / LOGIN / LOGOUT / ML SYNC)
+# =====================================================================
+
+@app.post("/api/auth/signup")
+def register_user(req: AuthSignupRequest):
+    email_clean = req.email.strip().lower()
+    name_clean = req.name.strip() or email_clean.split("@")[0].capitalize()
+    if len(req.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters.")
+
+    pw_hash = hash_password(req.password)
+    token = secrets.token_hex(24)
+
+    user_record = {
+        "name": name_clean,
+        "email": email_clean,
+        "password_hash": pw_hash,
+        "tier": "Signal Red VIP",
+        "ml_profile": req.ml_profile or {}
+    }
+
+    # Try saving to Supabase `users` table first, fallback to in-memory store
+    try:
+        existing = supabase.table("users").select("*").eq("email", email_clean).execute()
+        if existing.data and len(existing.data) > 0:
+            raise HTTPException(status_code=400, detail="Account already exists. Please Sign In.")
+        ins = supabase.table("users").insert(user_record).execute()
+        saved_user = ins.data[0] if ins.data else user_record
+    except HTTPException:
+        raise
+    except Exception:
+        if email_clean in FALLBACK_USERS_DB:
+            raise HTTPException(status_code=400, detail="Account already exists. Please Sign In.")
+        FALLBACK_USERS_DB[email_clean] = user_record
+        saved_user = user_record
+
+    public_user = {
+        "name": saved_user.get("name", name_clean),
+        "email": email_clean,
+        "tier": saved_user.get("tier", "Signal Red VIP"),
+        "joinedAt": time.strftime("%b %Y"),
+        "ml_profile": saved_user.get("ml_profile") or {}
+    }
+    ACTIVE_SESSIONS[token] = public_user
+    return {"status": "success", "token": token, "user": public_user}
+
+@app.post("/api/auth/login")
+def login_user(req: AuthLoginRequest):
+    email_clean = req.email.strip().lower()
+    pw_hash = hash_password(req.password)
+    token = secrets.token_hex(24)
+
+    # Demo 1-Click Login support
+    if email_clean == "nikhil@khojo.ai" and req.password == "demo1234":
+        demo_user = {
+            "name": "Nikhil",
+            "email": "nikhil@khojo.ai",
+            "tier": "Signal Red VIP",
+            "joinedAt": "Nov 2026",
+            "ml_profile": {}
+        }
+        ACTIVE_SESSIONS[token] = demo_user
+        return {"status": "success", "token": token, "user": demo_user}
+
+    found_user = None
+    try:
+        res = supabase.table("users").select("*").eq("email", email_clean).execute()
+        if res.data and len(res.data) > 0:
+            found_user = res.data[0]
+    except Exception:
+        found_user = FALLBACK_USERS_DB.get(email_clean)
+
+    if not found_user:
+        # Auto-provision account on first login for frictionless UX
+        auto_name = email_clean.split("@")[0].capitalize()
+        found_user = {
+            "name": auto_name,
+            "email": email_clean,
+            "password_hash": pw_hash,
+            "tier": "Signal Red VIP",
+            "ml_profile": {}
+        }
+        FALLBACK_USERS_DB[email_clean] = found_user
+        try:
+            supabase.table("users").insert(found_user).execute()
+        except Exception:
+            pass
+    elif found_user.get("password_hash") != pw_hash:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    public_user = {
+        "name": found_user.get("name", "Member"),
+        "email": email_clean,
+        "tier": found_user.get("tier", "Signal Red VIP"),
+        "joinedAt": time.strftime("%b %Y"),
+        "ml_profile": found_user.get("ml_profile") or {}
+    }
+    ACTIVE_SESSIONS[token] = public_user
+    return {"status": "success", "token": token, "user": public_user}
+
+@app.post("/api/auth/logout")
+def logout_user(authorization: Optional[str] = Header(None)):
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "").strip()
+        ACTIVE_SESSIONS.pop(token, None)
+    return {"status": "success", "message": "Logged out and session token revoked."}
+
+@app.post("/api/auth/sync-ml")
+def sync_user_ml_profile(req: MLSyncRequest):
+    email_clean = req.email.strip().lower()
+    if email_clean in FALLBACK_USERS_DB:
+        FALLBACK_USERS_DB[email_clean]["ml_profile"] = req.ml_profile
+    try:
+        supabase.table("users").update({"ml_profile": req.ml_profile}).eq("email", email_clean).execute()
+    except Exception:
+        pass
+    return {"status": "synced"}
+
+# =====================================================================
+# 7. STORE POLICIES, INTENT ROUTER & ML INVENTORY RANKING
+# =====================================================================
 STORE_POLICIES = {
     "return": "All items across Amazon India, Flipkart, Myntra, and Nykaa via Khojo AI support a 7-Day Easy Return & Exchange policy for unused items with original tags.",
     "shipping": "Free standard delivery across India on orders above ₹499. Express delivery takes 1-3 business days in metro cities.",
@@ -106,7 +249,6 @@ GREETING_PATTERNS = {
 }
 
 def detect_user_intent(message: str) -> str:
-    """Classifies user message into 'greeting', 'policy', or 'product_search'."""
     clean = re.sub(r"[^\w\s]", "", message.lower()).strip()
     if not clean:
         return "greeting"
@@ -116,7 +258,6 @@ def detect_user_intent(message: str) -> str:
         return "policy"
     return "product_search"
 
-# 7. Strict Keyword & Relevance Scoring (Never dumps random items if score == 0)
 def normalize_tags(raw_tags: Any) -> str:
     if isinstance(raw_tags, list):
         return " ".join(str(t) for t in raw_tags)
@@ -124,7 +265,11 @@ def normalize_tags(raw_tags: Any) -> str:
         return raw_tags.replace("{", "").replace("}", "").replace('"', "").replace(",", " ")
     return ""
 
-def score_products_by_keywords(items: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+def score_products_by_keywords(
+    items: List[Dict[str, Any]],
+    query: str,
+    user_profile: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
     if not query or not query.strip():
         return items
 
@@ -144,6 +289,9 @@ def score_products_by_keywords(items: List[Dict[str, Any]], query: str) -> List[
     if not keywords:
         return []
 
+    cat_affinities = (user_profile or {}).get("categories", {})
+    brand_affinities = (user_profile or {}).get("brands", {})
+
     scored_items = []
     for item in items:
         tags_str = normalize_tags(item.get("tags"))
@@ -155,26 +303,30 @@ def score_products_by_keywords(items: List[Dict[str, Any]], query: str) -> List[
             tags_str
         ]).lower().replace(".", "")
 
-        score = 0
+        score = 0.0
         for kw in keywords:
             if kw in searchable_text:
-                score += 3
+                score += 4.0
             elif kw.endswith("s") and len(kw) > 3 and kw[:-1] in searchable_text:
-                score += 3
+                score += 4.0
 
-        cat_lower = str(item.get("category", "")).lower()
-        if any(k in ["shoe", "shoes", "sneaker", "sneakers", "running", "footwear", "clogs", "boots", "slides"] for k in keywords) and cat_lower == "footwear":
-            score += 2
-        if any(k in ["hoodie", "shirt", "shirts", "tshirt", "kurta", "jeans", "cargo", "cargos", "jacket", "blazer", "apparel", "clothing", "polo"] for k in keywords) and cat_lower == "apparel":
-            score += 2
-        if any(k in ["skin", "skincare", "cleanser", "serum", "face", "lipstick", "makeup", "sunscreen", "moisturizer", "beauty", "nykaa", "shampoo", "perfume"] for k in keywords) and cat_lower == "beauty":
-            score += 2
-        if any(k in ["mouse", "headphone", "headphones", "earphone", "earbuds", "speaker", "keyboard", "ssd", "powerbank", "noise", "cancelling", "tech", "gaming", "electronics", "laptop", "phone", "iphone"] for k in keywords) and cat_lower == "electronics":
-            score += 2
+        cat_name = str(item.get("category", ""))
+        cat_lower = cat_name.lower()
+        if any(k in ["shoe", "shoes", "sneaker", "sneakers", "running", "footwear", "clogs", "boots"] for k in keywords) and cat_lower == "footwear":
+            score += 3.0
+        if any(k in ["hoodie", "shirt", "shirts", "tshirt", "kurta", "jeans", "cargo", "cargos", "jacket", "blazer", "apparel", "polo"] for k in keywords) and cat_lower == "apparel":
+            score += 3.0
+        if any(k in ["skin", "skincare", "cleanser", "serum", "face", "lipstick", "makeup", "sunscreen", "moisturizer", "beauty", "nykaa"] for k in keywords) and cat_lower == "beauty":
+            score += 3.0
+        if any(k in ["mouse", "headphone", "headphones", "earphone", "earbuds", "speaker", "keyboard", "ssd", "powerbank", "noise", "cancelling", "tech", "gaming", "electronics"] for k in keywords) and cat_lower == "electronics":
+            score += 3.0
         if any(k in ["watch", "watches", "sunglasses", "bag", "backpack", "wallet", "trolley", "tumbler", "accessories"] for k in keywords) and cat_lower == "accessories":
-            score += 2
+            score += 3.0
 
         if score > 0:
+            # Boost by user's Machine Learning profile weights
+            score += min(3.5, float(cat_affinities.get(cat_name, 0)) * 0.25)
+            score += min(3.0, float(brand_affinities.get(item.get("brand", ""), 0)) * 0.4)
             scored_items.append((score, item))
 
     scored_items.sort(key=lambda x: (x[0], float(x[1].get("rating") or 0)), reverse=True)
@@ -185,7 +337,8 @@ def search_supabase_products(
     category: Optional[str] = None,
     platform: Optional[str] = None,
     max_price: Optional[float] = None,
-    strict_match: bool = False
+    strict_match: bool = False,
+    user_profile: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
     try:
         req = supabase.table("products").select("*")
@@ -203,7 +356,7 @@ def search_supabase_products(
         items = response.data or []
 
         if query and query.strip():
-            ranked = score_products_by_keywords(items, query)
+            ranked = score_products_by_keywords(items, query, user_profile=user_profile)
             if ranked:
                 return ranked[:8]
             return [] if strict_match else items[:8]
@@ -216,7 +369,6 @@ def search_supabase_products(
 
 def extract_filters_from_text(text: str) -> Dict[str, Any]:
     text_lower = text.lower()
-
     max_price = None
     price_match = re.search(r"(?:under|below|less than|budget|max|₹|rs\.?\s*)\s*(\d{3,6})", text_lower)
     if price_match:
@@ -240,11 +392,7 @@ def extract_filters_from_text(text: str) -> Dict[str, Any]:
     elif any(w in text_lower for w in ["bag", "backpack", "tote", "trolley", "wallet", "watch", "watches", "sunglass", "sunglasses", "tumbler", "accessories"]):
         category = "Accessories"
 
-    return {
-        "max_price": max_price,
-        "platform": platform,
-        "category": category
-    }
+    return {"max_price": max_price, "platform": platform, "category": category}
 
 # =====================================================================
 # 8. REAL-TIME SHOPPING SCRAPER & GROQ AI AUTO-CATEGORIZER
@@ -258,11 +406,6 @@ CATEGORY_FALLBACK_IMAGES = {
 }
 
 def fetch_live_ecommerce_products(query: str, max_price: Optional[float] = None) -> List[Dict[str, Any]]:
-    """
-    Scrapes live listings from Amazon.in, Flipkart, Myntra, and Nykaa via DuckDuckGo,
-    uses Groq AI to structure and auto-categorize them into exact catalog schema,
-    and saves new discoveries directly to Supabase!
-    """
     raw_snippets = []
     image_map: List[str] = []
 
@@ -276,8 +419,6 @@ def fetch_live_ecommerce_products(query: str, max_price: Optional[float] = None)
                     "snippet": r.get("body", ""),
                     "url": r.get("href", "")
                 })
-
-            # Also fetch real product thumbnail images
             try:
                 img_results = list(ddgs.images(f"{query} product india ecommerce", region="in-en", max_results=6))
                 image_map = [img.get("image") for img in img_results if img.get("image", "").startswith("http")]
@@ -297,14 +438,14 @@ Each product object MUST have these exact keys:
 - "name": Clean, specific product title (string)
 - "brand": Brand name (string)
 - "category": MUST be strictly one of: ["Footwear", "Beauty", "Electronics", "Apparel", "Accessories"]
-- "platform": MUST be strictly one of: ["Amazon India", "Flipkart", "Myntra", "Nykaa"] (detect from URL or best fit)
-- "price_inr": Realistic current Indian price in INR (integer, e.g. 1499). {f"Must be <= {int(max_price)}" if max_price else ""}
-- "mrp_inr": Original MRP integer (~20% to 35% higher than price_inr)
+- "platform": MUST be strictly one of: ["Amazon India", "Flipkart", "Myntra", "Nykaa"]
+- "price_inr": Realistic current Indian price in INR (integer). {f"Must be <= {int(max_price)}" if max_price else ""}
+- "mrp_inr": Original MRP integer (~25% higher than price_inr)
 - "rating": Float between 4.1 and 4.8
 - "in_stock": true
-- "tags": Array of 4 lowercase searchable keywords (including category and brand)
+- "tags": Array of 4 lowercase searchable keywords
 
-Return ONLY a raw JSON array `[...]` with no markdown backticks or extra text.
+Return ONLY a raw JSON array `[...]` with no markdown backticks.
 
 Live Snippets:
 {json.dumps(raw_snippets, indent=2)}
@@ -319,7 +460,6 @@ Live Snippets:
                 max_tokens=700
             )
             raw_output = completion.choices[0].message.content.strip()
-            # Extract JSON array safely
             json_match = re.search(r"\[.*\]", raw_output, re.DOTALL)
             if not json_match:
                 continue
@@ -347,7 +487,6 @@ Live Snippets:
                     "tags": item.get("tags") if isinstance(item.get("tags"), list) else [query.lower(), cat.lower()]
                 }
 
-                # Persist to Supabase so future searches are instant!
                 try:
                     ins = supabase.table("products").insert(clean_row).execute()
                     if ins.data and len(ins.data) > 0:
@@ -367,12 +506,12 @@ Live Snippets:
     return []
 
 # =====================================================================
-# 9. API ENDPOINTS
+# 9. CATALOG & CHATBOT ENDPOINTS
 # =====================================================================
 
 @app.get("/")
 def health_check():
-    return {"status": "online", "service": "Khojo AI Backend v4.0 (Live Scraper + Auto-Categorizer)"}
+    return {"status": "online", "service": "Khojo AI Backend v5.0 (Auth + ML + Live Scraper)"}
 
 @app.get("/api/products")
 def get_catalog_products(
@@ -388,35 +527,25 @@ def get_catalog_products(
         max_price=max_price,
         strict_match=bool(q and q.strip())
     )
-    # If user searched a specific term not in Supabase yet, auto-fetch live from shopping sites!
     if q and q.strip() and len(products) == 0:
         products = fetch_live_ecommerce_products(q.strip(), max_price=max_price)
 
     return {"products": products, "count": len(products)}
 
 @app.post("/api/live-ingest")
-def trigger_live_product_discovery(
-    query: str = Query(..., description="Product or keyword to fetch live from Amazon/Flipkart/Myntra/Nykaa")
-):
-    """Explicit endpoint to scrape real-time items, auto-categorize via AI, and store in Supabase."""
+def trigger_live_product_discovery(query: str = Query(...)):
     discovered = fetch_live_ecommerce_products(query)
-    return {
-        "status": "success",
-        "discovered_count": len(discovered),
-        "products": discovered
-    }
+    return {"status": "success", "discovered_count": len(discovered), "products": discovered}
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_with_assistant(req: ChatRequest, request: Request):
-    # 1. Honeypot Bot Trap
     if req.website_hp and req.website_hp.strip() != "":
         return ChatResponse(reply="Spam detected.", products=[], mode_used="spam_shield")
 
-    # 2. Rate Limit Protection
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(f"chat:{client_ip}", max_requests=15, window_sec=60):
         return ChatResponse(
-            reply="⏳ You are sending messages too quickly! Please wait a few seconds before asking another question.",
+            reply="⏳ You are sending messages too quickly! Please wait a few seconds.",
             products=[],
             mode_used="rate_limiter"
         )
@@ -424,28 +553,25 @@ def chat_with_assistant(req: ChatRequest, request: Request):
     user_msg = req.message.strip()[:500]
     intent = detect_user_intent(user_msg)
 
-    # 3. Handle Casual Greetings (Fixes "hello" showing 8 random products!)
     if intent == "greeting":
         greeting_reply = (
-            "Namaste! ✨ Welcome to **Khojo AI**, your luxury shopping & price intelligence concierge.\n\n"
-            "Tell me what you're looking to buy today—for example:\n"
-            "• *\"Show me U.S. Polo shirts under ₹2000\"*\n"
-            "• *\"Best running sneakers on Flipkart\"*\n"
-            "• *\"Minimalist face serum on Nykaa\"*\n\n"
-            "If an item isn't in our vault yet, I will **fetch it live** from Amazon India, Flipkart, Myntra, or Nykaa and auto-categorize it for you!"
+            "Namaste! ✨ Welcome to **Khojo AI**, your central conversational commerce hub.\n\n"
+            "I am trained to:\n"
+            "1. **Answer repetitive questions** (*\"What is your return policy?\"*, *\"Do you support COD?\"*)\n"
+            "2. **Search live inventory data** across Amazon India, Flipkart, Myntra & Nykaa\n"
+            "3. **Make personalized ML product recommendations** tailored to your search history.\n\n"
+            "What would you like to find or compare today?"
         )
         return ChatResponse(reply=greeting_reply, products=[], mode_used="intent_greeting")
 
-    # 4. Handle Store Policy Questions
     if intent == "policy":
         policy_info = "\n".join([f"• **{k.capitalize()}**: {v}" for k, v in STORE_POLICIES.items()])
         return ChatResponse(
-            reply=f"Here are our official **Khojo AI** customer support policies:\n\n{policy_info}\n\nWhat product can I help you compare today?",
+            reply=f"Here are our official **Khojo AI** customer support policies:\n\n{policy_info}\n\nWhat product can I help you find today?",
             products=[],
             mode_used="policy_engine"
         )
 
-    # 5. Handle Real Product Search (With Automatic Live E-Commerce Scraping Fallback)
     filters = extract_filters_from_text(user_msg)
 
     matched_products = search_supabase_products(
@@ -453,7 +579,8 @@ def chat_with_assistant(req: ChatRequest, request: Request):
         category=filters["category"],
         platform=filters["platform"],
         max_price=filters["max_price"],
-        strict_match=True
+        strict_match=True,
+        user_profile=req.user_profile
     )
 
     if not matched_products and filters["category"]:
@@ -461,13 +588,17 @@ def chat_with_assistant(req: ChatRequest, request: Request):
             query=user_msg,
             category=filters["category"],
             max_price=filters["max_price"],
-            strict_match=True
+            strict_match=True,
+            user_profile=req.user_profile
         )
 
     if not matched_products:
-        matched_products = search_supabase_products(query=user_msg, strict_match=True)
+        matched_products = search_supabase_products(
+            query=user_msg,
+            strict_match=True,
+            user_profile=req.user_profile
+        )
 
-    # 6. LIVE DISCOVERY: If not in Supabase, scrape Amazon/Flipkart/Myntra/Nykaa in real time!
     scraped_live = False
     if not matched_products:
         matched_products = fetch_live_ecommerce_products(user_msg, max_price=filters["max_price"])
@@ -487,9 +618,9 @@ def chat_with_assistant(req: ChatRequest, request: Request):
     ], indent=2)
 
     system_prompt = (
-        "You are Khojo AI, India's smart luxury shopping concierge covering Amazon India, Flipkart, Myntra, and Nykaa. "
+        "You are Khojo AI, India's central conversational shopping & ML recommendation system covering Amazon India, Flipkart, Myntra, and Nykaa. "
         "Keep your response friendly, concise (2-3 sentences max), and helpful. Use ₹ for prices. "
-        f"{'Note: You just fetched and auto-categorized these items LIVE from Indian shopping sites into the Khojo AI vault! Mention that briefly. ' if scraped_live else ''}"
+        f"{'Note: You just fetched and auto-categorized these items LIVE from Indian shopping sites! ' if scraped_live else ''}"
         "Highlight the best options from the matching products below, and remind the user they can click 'Compare' for the 6-month price graph or 'Buy Now'.\n\n"
         f"Matching Catalog Products:\n{product_context}"
     )
@@ -514,28 +645,23 @@ def chat_with_assistant(req: ChatRequest, request: Request):
                     products=matched_products,
                     mode_used=f"{model_name}{'_live_scraped' if scraped_live else ''}"
                 )
-            except Exception as e:
-                print(f"Model {model_name} failed: {e}")
+            except Exception:
                 continue
 
     if matched_products:
         top = matched_products[0]
         reply_text = (
-            f"I found **{len(matched_products)} {'live ' if scraped_live else ''}options** for you (auto-categorized under **{top.get('category')}**)! "
+            f"I found **{len(matched_products)} personalized options** for you under **{top.get('category')}**! "
             f"The top pick is the **{top.get('name')}** by {top.get('brand')} on **{top.get('platform')}** for **₹{top.get('price_inr')}**. "
             "Tap **Compare** to inspect the 6-month price history or click **Buy Now**!"
         )
     else:
         reply_text = (
             f"I searched across Amazon India, Flipkart, Myntra & Nykaa for **\"{user_msg}\"**, "
-            "but couldn't verify an in-stock listing right now. Try searching a specific brand or product name (e.g., *\"Casio Vintage Watch\"* or *\"Cetaphil Cleanser\"*)!"
+            "but couldn't verify an in-stock listing right now. Try searching a specific brand or product name!"
         )
 
-    return ChatResponse(
-        reply=reply_text,
-        products=matched_products,
-        mode_used="live_discovery_fallback"
-    )
+    return ChatResponse(reply=reply_text, products=matched_products, mode_used="ml_discovery")
 
 # =====================================================================
 # 10. DATABASE FIX REPORTER & LINK RESOLVER
@@ -549,11 +675,11 @@ def submit_product_fix_report(report: IssueReportRequest, request: Request):
 
     client_ip = request.client.host if request.client else "unknown"
     if not check_rate_limit(f"report:{client_ip}", max_requests=5, window_sec=60):
-        raise HTTPException(status_code=429, detail="Too many reports submitted. Please wait a minute.")
+        raise HTTPException(status_code=429, detail="Too many reports submitted.")
 
     clean_info = report.correct_info.strip()
     if len(clean_info) < 4:
-        raise HTTPException(status_code=400, detail="Please provide valid details so we can fix the issue.")
+        raise HTTPException(status_code=400, detail="Please provide valid details.")
 
     payload = {
         "product_id": str(report.product_id or ""),
@@ -567,17 +693,10 @@ def submit_product_fix_report(report: IssueReportRequest, request: Request):
 
     try:
         res = supabase.table("issue_reports").insert(payload).execute()
-        return {
-            "status": "success",
-            "message": "Report saved to Supabase database! Our team will verify and update this listing.",
-            "data": res.data
-        }
-    except Exception as e:
+        return {"status": "success", "message": "Report saved to Supabase database!", "data": res.data}
+    except Exception:
         FALLBACK_REPORTS_LOG.append(payload)
-        return {
-            "status": "logged",
-            "message": "Report logged successfully! Thank you for helping keep Khojo AI accurate."
-        }
+        return {"status": "logged", "message": "Report logged successfully!"}
 
 @app.get("/api/reports")
 def list_submitted_reports():
@@ -592,10 +711,10 @@ def resolve_issue_report(report_id: str, action: str = "approve"):
     try:
         if action == "approve":
             supabase.table("issue_reports").update({"status": "resolved"}).eq("id", report_id).execute()
-            return {"status": "success", "message": "Report approved and marked as resolved in Supabase!"}
+            return {"status": "success", "message": "Report approved!"}
         else:
             supabase.table("issue_reports").delete().eq("id", report_id).execute()
-            return {"status": "success", "message": "Report dismissed and removed."}
+            return {"status": "success", "message": "Report dismissed."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -626,9 +745,9 @@ RESOLVED_LINK_CACHE: Dict[str, str] = {}
 
 @app.get("/api/redirect")
 def resolve_live_product_link(
-    name: str = Query(..., description="Product Name"),
-    brand: str = Query("", description="Brand Name"),
-    platform: str = Query("Amazon India", description="E-Commerce Platform")
+    name: str = Query(...),
+    brand: str = Query(""),
+    platform: str = Query("Amazon India")
 ):
     plat_key = platform.lower().strip()
     if "amazon" in plat_key:
@@ -641,7 +760,6 @@ def resolve_live_product_link(
         plat_key = "myntra"
 
     config = PLATFORM_CONFIG.get(plat_key, PLATFORM_CONFIG["amazon india"])
-
     clean_name = re.sub(r"[^\w\s\-]", " ", name).strip()
     clean_brand = re.sub(r"[^\w\s\-]", " ", brand).strip()
     clean_query = f"{clean_brand} {clean_name}".strip() if clean_brand.lower() not in clean_name.lower() else clean_name
@@ -659,8 +777,8 @@ def resolve_live_product_link(
                 if href.startswith("http") and config["domain"] in href and config["is_product_page"](href):
                     RESOLVED_LINK_CACHE[cache_key] = href
                     return RedirectResponse(url=href, status_code=302)
-    except Exception as e:
-        print(f"DuckDuckGo resolution fallback for {clean_query}: {e}")
+    except Exception:
+        pass
 
     fallback_url = config["fallback"](clean_query)
     RESOLVED_LINK_CACHE[cache_key] = fallback_url

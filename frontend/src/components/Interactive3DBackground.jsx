@@ -19,83 +19,108 @@ export default function Interactive3DBackground() {
     };
     window.addEventListener('resize', handleResize);
 
-    let mouseX = 0;
-    let mouseY = 0;
+    let targetRotX = 0;
+    let targetRotY = 0;
     const handleMouseMove = (e) => {
       const rect = canvas.getBoundingClientRect();
-      mouseX = ((e.clientX - rect.left) / width - 0.5) * 2;
-      mouseY = ((e.clientY - rect.top) / height - 0.5) * 2;
+      targetRotY = ((e.clientX - rect.left) / width - 0.5) * 1.4;
+      targetRotX = ((e.clientY - rect.top) / height - 0.5) * 1.4;
     };
     window.addEventListener('mousemove', handleMouseMove);
 
-    // 3D Particles in Charcoal/Silver/Signal Red space
-    const particles = Array.from({ length: 48 }, (_, i) => ({
-      x: (Math.random() - 0.5) * 600,
-      y: (Math.random() - 0.5) * 350,
-      z: Math.random() * 400 + 80,
-      isRed: i % 4 === 0
+    // 3D Octahedron / Cyber-Crystal Core Vertices
+    const coreRadius = 155;
+    const coreVertices = [
+      { x: 0, y: -coreRadius, z: 0 },
+      { x: 0, y: coreRadius, z: 0 },
+      { x: -coreRadius, y: 0, z: 0 },
+      { x: coreRadius, y: 0, z: 0 },
+      { x: 0, y: 0, z: -coreRadius },
+      { x: 0, y: 0, z: coreRadius },
+      { x: -95, y: -95, z: -95 },
+      { x: 95, y: -95, z: -95 },
+      { x: 95, y: 95, z: -95 },
+      { x: -95, y: 95, z: -95 },
+      { x: -95, y: -95, z: 95 },
+      { x: 95, y: -95, z: 95 },
+      { x: 95, y: 95, z: 95 },
+      { x: -95, y: 95, z: 95 }
+    ];
+
+    // 3D Ambient Particles
+    const particles = Array.from({ length: 56 }, (_, i) => ({
+      x: (Math.random() - 0.5) * 900,
+      y: (Math.random() - 0.5) * 480,
+      z: (Math.random() - 0.5) * 500,
+      isRed: i % 3 === 0
     }));
 
-    let angleX = 0;
-    let angleY = 0;
+    let rotX = 0;
+    let rotY = 0;
+
+    const project3D = (pt, rx, ry, cx, cy) => {
+      const cosY = Math.cos(ry);
+      const sinY = Math.sin(ry);
+      let x1 = pt.x * cosY - pt.z * sinY;
+      let z1 = pt.z * cosY + pt.x * sinY;
+
+      const cosX = Math.cos(rx);
+      const sinX = Math.sin(rx);
+      let y1 = pt.y * cosX - z1 * sinX;
+      let z2 = z1 * cosX + pt.y * sinX + 460;
+
+      const scale = 390 / Math.max(80, z2);
+      return {
+        x: cx + x1 * scale,
+        y: cy + y1 * scale,
+        scale,
+        z: z2
+      };
+    };
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
 
-      angleY += 0.004 + mouseX * 0.008;
-      angleX += 0.002 + mouseY * 0.008;
+      rotY += 0.006 + (targetRotY - rotY) * 0.03;
+      rotX += 0.003 + (targetRotX - rotX) * 0.03;
 
       const cx = width / 2;
       const cy = height / 2;
 
-      const projected = particles.map((p) => {
-        // Rotate around Y
-        const cosY = Math.cos(angleY);
-        const sinY = Math.sin(angleY);
-        let x1 = p.x * cosY - p.z * sinY;
-        let z1 = p.z * cosY + p.x * sinY;
-
-        // Rotate around X
-        const cosX = Math.cos(angleX);
-        const sinX = Math.sin(angleX);
-        let y1 = p.y * cosX - z1 * sinX;
-        let z2 = z1 * cosX + p.y * sinX + 420;
-
-        const scale = 340 / Math.max(60, z2);
-        return {
-          x: cx + x1 * scale,
-          y: cy + y1 * scale,
-          scale,
-          isRed: p.isRed
-        };
-      });
-
-      // Draw 3D constellation mesh lines
-      for (let i = 0; i < projected.length; i++) {
-        for (let j = i + 1; j < projected.length; j++) {
-          const dx = projected[i].x - projected[j].x;
-          const dy = projected[i].y - projected[j].y;
+      // 1. Render 3D Rotating Wireframe Core
+      const projCore = coreVertices.map((v) => project3D(v, rotX, rotY, cx, cy));
+      for (let i = 0; i < projCore.length; i++) {
+        for (let j = i + 1; j < projCore.length; j++) {
+          const dx = projCore[i].x - projCore[j].x;
+          const dy = projCore[i].y - projCore[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 115) {
-            const alpha = (1 - dist / 115) * 0.22;
+          if (dist < 210) {
+            const alpha = (1 - dist / 210) * 0.35;
             ctx.strokeStyle =
-              projected[i].isRed || projected[j].isRed
+              (i + j) % 3 === 0
                 ? `rgba(255, 42, 42, ${alpha})`
                 : `rgba(192, 192, 200, ${alpha})`;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(projected[i].x, projected[i].y);
-            ctx.lineTo(projected[j].x, projected[j].y);
+            ctx.moveTo(projCore[i].x, projCore[i].y);
+            ctx.lineTo(projCore[j].x, projCore[j].y);
             ctx.stroke();
           }
         }
       }
 
-      // Draw glowing nodes
-      projected.forEach((pt) => {
+      // 2. Render 3D Floating Constellation Nodes
+      const projParticles = particles.map((p) => ({
+        ...project3D(p, rotX * 0.6, rotY * 0.6, cx, cy),
+        isRed: p.isRed
+      }));
+
+      projParticles.forEach((pt) => {
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, Math.max(1.5, pt.scale * 2.4), 0, Math.PI * 2);
-        ctx.fillStyle = pt.isRed ? '#FF2A2A' : '#E2E8F0';
+        ctx.arc(pt.x, pt.y, Math.max(1.2, pt.scale * 2.2), 0, Math.PI * 2);
+        ctx.fillStyle = pt.isRed
+          ? 'rgba(255, 42, 42, 0.85)'
+          : 'rgba(192, 192, 200, 0.75)';
         ctx.fill();
       });
 
@@ -113,7 +138,7 @@ export default function Interactive3DBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none opacity-65"
+      className="absolute inset-0 w-full h-full pointer-events-none opacity-80"
     />
   );
 }

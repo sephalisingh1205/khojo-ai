@@ -1,40 +1,71 @@
 @import "tailwindcss";
 
 @layer base {
-  .font-harmond {
-    font-family: 'Harmond Display', 'Cormorant Garamond', Georgia, serif;
-    letter-spacing: -0.01em;
+  :root {
+    --font-harmond: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --charcoal-bg: #121215;
+    --moonlit-silver: #C0C0C8;
+    --signal-red: #FF2A2A;
   }
+
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
+    background-color: #121215;
+    color: #E2E8F0;
     overflow-x: hidden;
   }
+
+  h1, h2, h3, .font-harmond {
+    font-family: var(--font-harmond);
+    letter-spacing: 0.015em;
+  }
+}
+
+/* 3D Depth & Perspective Utilities */
+.card-3d-shell {
+  transform-style: preserve-3d;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(192, 192, 200, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+}
+
+.card-3d-shell:hover {
+  box-shadow:
+    0 26px 65px rgba(255, 42, 42, 0.14),
+    0 0 0 1px rgba(255, 42, 42, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px) scale(0.99);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom Gold & Cyan Scrollbar */
+/* Custom Charcoal & Signal Red Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #070709;
+  background: #121215;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #D4AF37, #22D3EE);
+  background: #2E2E38;
   border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF2A2A;
 }
