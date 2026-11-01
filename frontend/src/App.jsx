@@ -13,7 +13,8 @@ import {
   Lock,
   Bot,
   User,
-  CheckCircle2
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { API_BASE_URL } from './config';
 import ProductCard from './components/ProductCard';
@@ -40,7 +41,6 @@ const CATEGORIES = ['All', 'Footwear', 'Beauty', 'Electronics', 'Apparel', 'Acce
 
 export default function App() {
   const [booting, setBooting] = useState(true);
-  // Pages: 'home' | 'login' | 'chat' | 'profile' | 'wishlist' | 'privacy' | 'terms' | '404'
   const [activePage, setActivePage] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -69,8 +69,11 @@ export default function App() {
   const [reporterTargetProduct, setReporterTargetProduct] = useState(null);
   const [isReporterOpen, setIsReporterOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  // User-Controlled Versus State & Category Mismatch Popup
   const [isVersusOpen, setIsVersusOpen] = useState(false);
   const [versusProducts, setVersusProducts] = useState([]);
+  const [versusMismatchAlert, setVersusMismatchAlert] = useState('');
 
   const [wishlist, setWishlist] = useState(() => {
     const saved = localStorage.getItem('khojo_wishlist');
@@ -119,6 +122,46 @@ export default function App() {
     });
   };
 
+  // Manual User-Controlled Versus Selection with Same-Category Validation
+  const handleToggleVersusProduct = (product) => {
+    if (!product) return;
+    handleRecordInteraction({ type: 'click', product });
+
+    const alreadyIn = versusProducts.some((p) => p.id === product.id);
+    if (alreadyIn) {
+      setVersusProducts((prev) => prev.filter((p) => p.id !== product.id));
+      return;
+    }
+
+    if (versusProducts.length === 0) {
+      setVersusProducts([product]);
+      return;
+    }
+
+    const firstItem = versusProducts[0];
+    if (
+      String(firstItem.category).toLowerCase() !==
+      String(product.category).toLowerCase()
+    ) {
+      setVersusMismatchAlert(
+        `Please add items of the SAME category! Your first item "${firstItem.name}" belongs to "${firstItem.category}", so you cannot compare it with "${product.name}" ("${product.category}"). Please select another ${firstItem.category} item!`
+      );
+      return;
+    }
+
+    if (versusProducts.length === 1) {
+      const nextPair = [firstItem, product];
+      setVersusProducts(nextPair);
+      setIsVersusOpen(true);
+      return;
+    }
+
+    // If 2 items are already selected and user clicks a 3rd item of the same category, replace Slot B
+    const nextPair = [firstItem, product];
+    setVersusProducts(nextPair);
+    setIsVersusOpen(true);
+  };
+
   const handleSavePriceAlert = (alertObj) => {
     setPriceAlerts((prev) => {
       const filtered = prev.filter((a) => a.id !== alertObj.id);
@@ -133,13 +176,7 @@ export default function App() {
   };
 
   const openVersusBattle = () => {
-    if (displayedProducts.length >= 2) {
-      setVersusProducts([displayedProducts[0], displayedProducts[1]]);
-      setIsVersusOpen(true);
-    } else if (products.length >= 2) {
-      setVersusProducts([products[0], products[1]]);
-      setIsVersusOpen(true);
-    }
+    setIsVersusOpen(true);
   };
 
   const startVoiceSearch = () => {
@@ -275,6 +312,40 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#121215] text-[#E2E8F0]">
+      {/* Category Mismatch Popup Modal */}
+      {versusMismatchAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-md rounded-3xl bg-[#161215] border-2 border-[#FF2A2A] p-6 text-center space-y-4 shadow-2xl shadow-[#FF2A2A]/30">
+            <div className="w-14 h-14 rounded-2xl bg-[#FF2A2A]/20 border border-[#FF2A2A] text-[#FF2A2A] flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-8 h-8 animate-bounce" />
+            </div>
+            <h3 className="font-harmond text-3xl font-bold text-white">
+              Put Items of the Same Category!
+            </h3>
+            <p className="text-xs sm:text-sm text-[#E2E8F0] leading-relaxed">
+              {versusMismatchAlert}
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setVersusProducts([]);
+                  setVersusMismatchAlert('');
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-[#C0C0C8]/30 text-xs font-semibold text-[#C0C0C8] hover:text-white cursor-pointer"
+              >
+                Reset Versus
+              </button>
+              <button
+                onClick={() => setVersusMismatchAlert('')}
+                className="flex-1 py-2.5 rounded-xl bg-[#FF2A2A] text-white font-bold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-[#FF2A2A]/25"
+              >
+                OK, Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Email Confirmation Toast */}
       {authToast && (
         <div className="fixed top-16 right-4 z-50 bg-[#141419] border border-emerald-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs animate-fadeIn">
@@ -345,10 +416,10 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={openVersusBattle}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#C0C0C8]/30 bg-white/5 hover:border-white text-[#E2E8F0] text-xs font-semibold cursor-pointer"
+              className="relative hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#C0C0C8]/30 bg-white/5 hover:border-[#FF2A2A] text-[#E2E8F0] text-xs font-semibold cursor-pointer"
             >
               <Scale className="w-3.5 h-3.5 text-[#FF2A2A]" />
-              <span>Versus</span>
+              <span>Versus ({versusProducts.length}/2)</span>
             </button>
 
             <button
@@ -499,7 +570,7 @@ export default function App() {
                 <div className="text-center space-y-2">
                   <span className="inline-flex items-center gap-1.5 bg-[#1C1C24]/90 border border-[#C0C0C8]/30 text-[#E2E8F0] text-[9px] sm:text-xs font-semibold px-3 py-1 rounded-full tracking-widest uppercase">
                     <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
-                    Conversational Shopping • 6-Month Price Graph • Versus Mode
+                    Conversational Shopping • 6-Month Price Graph • Custom Versus Battle
                   </span>
 
                   <h2 className="font-harmond text-3xl sm:text-5xl font-bold tracking-tight leading-none text-white">
@@ -542,7 +613,7 @@ export default function App() {
                     : 'Live Marketplace Catalog'}
                 </h3>
                 <p className="text-xs text-[#C0C0C8]">
-                  Compare real-time prices across Amazon India, Flipkart, Myntra & Nykaa
+                  Tap <strong>"+ Versus"</strong> on any two items of the same category to run an AI Head-to-Head Battle
                 </p>
               </div>
 
@@ -577,9 +648,10 @@ export default function App() {
 
                 <button
                   onClick={openVersusBattle}
-                  className="px-3.5 py-2 rounded-xl bg-[#FF2A2A] text-white text-xs font-bold uppercase tracking-wider cursor-pointer shrink-0 shadow-md shadow-[#FF2A2A]/20"
+                  className="px-3.5 py-2 rounded-xl bg-[#FF2A2A] text-white text-xs font-bold uppercase tracking-wider cursor-pointer shrink-0 shadow-md shadow-[#FF2A2A]/20 flex items-center gap-1.5"
                 >
-                  Versus
+                  <Scale className="w-3.5 h-3.5" />
+                  <span>Versus ({versusProducts.length}/2)</span>
                 </button>
               </div>
             </div>
@@ -667,7 +739,9 @@ export default function App() {
                     key={prod.id}
                     product={prod}
                     isWishlisted={wishlist.some((w) => w.id === prod.id)}
+                    isInVersus={versusProducts.some((v) => v.id === prod.id)}
                     onToggleWishlist={() => toggleWishlist(prod)}
+                    onToggleVersus={(p) => handleToggleVersusProduct(p)}
                     onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
                     onOpenReporter={(p) => openFixReporter(p)}
                     onProductInteract={(p) =>
@@ -679,6 +753,42 @@ export default function App() {
             )}
           </main>
         </>
+      )}
+
+      {/* Floating User-Controlled Versus Dock */}
+      {versusProducts.length > 0 && !isVersusOpen && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-xl rounded-2xl bg-[#14141A]/95 backdrop-blur-xl border border-[#FF2A2A] p-3 shadow-2xl shadow-black flex items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="p-2 rounded-xl bg-[#FF2A2A]/20 text-[#FF2A2A] shrink-0">
+              <Scale className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF2A2A] block">
+                Versus Arena ({versusProducts[0].category}) • {versusProducts.length}/2 Selected
+              </span>
+              <p className="text-xs text-white truncate">
+                {versusProducts.map((p) => p.name).join(' vs. ')}
+                {versusProducts.length === 1 &&
+                  ` — Pick 1 more ${versusProducts[0].category} item!`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setVersusProducts([])}
+              className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] text-[#C0C0C8] cursor-pointer"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => setIsVersusOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white font-bold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-[#FF2A2A]/30"
+            >
+              {versusProducts.length === 2 ? 'Compare Now ⚡' : 'Pick 2nd Item'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Footer */}
@@ -745,8 +855,9 @@ export default function App() {
       {isVersusOpen && (
         <VersusModal
           selectedProducts={versusProducts}
+          catalogProducts={products}
+          onUpdateVersus={(updatedList) => setVersusProducts(updatedList)}
           onClose={() => setIsVersusOpen(false)}
-          themeMode={themeMode}
         />
       )}
 

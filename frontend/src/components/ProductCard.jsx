@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, ExternalLink, Heart, BarChart2, Sparkles, Wrench } from 'lucide-react';
+import { Star, ExternalLink, Heart, BarChart2, Sparkles, Wrench, Scale, Check } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 const PLATFORM_BADGES = {
@@ -15,7 +15,9 @@ export default function ProductCard({
   product,
   compact = false,
   isWishlisted = false,
+  isInVersus = false,
   onToggleWishlist,
+  onToggleVersus,
   onOpenAnalytics,
   onOpenReporter,
   onProductInteract
@@ -66,9 +68,11 @@ export default function ProductCard({
       style={tiltStyle}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`rounded-2xl border overflow-hidden flex flex-col justify-between group bg-gradient-to-b from-[#1A1A20] to-[#111115] border-[#C0C0C8]/20 text-zinc-100 hover:border-[#FF2A2A]/70 hover:shadow-2xl hover:shadow-[#FF2A2A]/10 ${
-        compact ? 'w-64 shrink-0' : 'w-full'
-      }`}
+      className={`rounded-2xl border overflow-hidden flex flex-col justify-between group bg-gradient-to-b from-[#1A1A20] to-[#111115] text-zinc-100 transition-all ${
+        isInVersus
+          ? 'border-[#FF2A2A] ring-2 ring-[#FF2A2A]/40 shadow-2xl shadow-[#FF2A2A]/20'
+          : 'border-[#C0C0C8]/20 hover:border-[#FF2A2A]/70 hover:shadow-2xl hover:shadow-[#FF2A2A]/10'
+      } ${compact ? 'w-64 shrink-0' : 'w-full'}`}
     >
       <div>
         <div className={`relative bg-zinc-950 overflow-hidden ${compact ? 'h-36' : 'h-52 sm:h-56'}`}>
@@ -100,6 +104,32 @@ export default function ProductCard({
             <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
             Deal Score {dealScore}
           </button>
+
+          {/* Manual "+ Versus" Selection Pill */}
+          {onToggleVersus && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                onToggleVersus(product);
+              }}
+              title="Add to Head-to-Head Versus Battle (Same Category Only)"
+              className={`absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer backdrop-blur-md border ${
+                isInVersus
+                  ? 'bg-[#FF2A2A] text-white border-[#FF2A2A] shadow-lg shadow-[#FF2A2A]/40'
+                  : 'bg-black/85 text-[#E2E8F0] border-[#C0C0C8]/40 hover:border-[#FF2A2A] hover:text-[#FF2A2A]'
+              }`}
+            >
+              {isInVersus ? (
+                <>
+                  <Check className="w-3 h-3" /> In Versus
+                </>
+              ) : (
+                <>
+                  <Scale className="w-3 h-3 text-[#FF2A2A]" /> + Versus
+                </>
+              )}
+            </button>
+          )}
 
           <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
             <button
@@ -155,7 +185,7 @@ export default function ProductCard({
 
           {!compact && (
             <div className="text-[11px] text-zinc-400 mt-1.5 flex items-center justify-between">
-              <span>{product.category} • 4 Stores</span>
+              <span className="text-[#C0C0C8] font-medium">{product.category}</span>
               <button
                 onClick={() => onOpenReporter && onOpenReporter(product)}
                 className="text-[#C0C0C8] hover:text-[#FF2A2A] underline cursor-pointer"
@@ -195,7 +225,7 @@ export default function ProductCard({
             className="py-2 px-2 rounded-xl font-semibold text-xs border border-[#C0C0C8]/30 bg-white/5 text-[#E2E8F0] hover:border-white hover:bg-white/10 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <BarChart2 className="w-3.5 h-3.5 text-[#C0C0C8] shrink-0" />
-            <span className="truncate">{compact ? 'Graph' : 'Compare'}</span>
+            <span className="truncate">{compact ? 'Graph' : 'Price Graph'}</span>
           </button>
 
           <a
