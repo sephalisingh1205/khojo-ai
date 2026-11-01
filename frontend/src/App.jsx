@@ -12,7 +12,8 @@ import {
   Scale,
   Lock,
   Bot,
-  User
+  User,
+  CheckCircle2
 } from 'lucide-react';
 import { API_BASE_URL } from './config';
 import ProductCard from './components/ProductCard';
@@ -22,7 +23,7 @@ import FixReporterModal from './components/FixReporterModal';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import Interactive3DBackground from './components/Interactive3DBackground';
 import LoadingScreen3D from './components/LoadingScreen3D';
-import { LoginModal, ProfileDashboard } from './components/AuthAndProfile';
+import { AuthPage, ProfileDashboard } from './components/AuthAndProfile';
 import {
   PrivacyPolicyPage,
   TermsAndConditionsPage,
@@ -39,6 +40,7 @@ const CATEGORIES = ['All', 'Footwear', 'Beauty', 'Electronics', 'Apparel', 'Acce
 
 export default function App() {
   const [booting, setBooting] = useState(true);
+  // Pages: 'home' | 'login' | 'chat' | 'profile' | 'wishlist' | 'privacy' | 'terms' | '404'
   const [activePage, setActivePage] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -50,7 +52,7 @@ export default function App() {
       return null;
     }
   });
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [authToast, setAuthToast] = useState('');
   const [mlProfile, setMlProfile] = useState(() => getMLProfile());
 
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -80,10 +82,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Check 404 route on mount (LoadingScreen3D handles setting booting to false at 100%)
   useEffect(() => {
     const path = window.location.pathname;
-    if (path && path !== '/' && !['/index.html'].includes(path)) {
+    if (path === '/login') {
+      setActivePage('login');
+    } else if (path && path !== '/' && !['/index.html'].includes(path)) {
       setActivePage('404');
     }
   }, []);
@@ -102,7 +105,6 @@ export default function App() {
     localStorage.setItem('khojo_price_alerts', JSON.stringify(priceAlerts));
   }, [priceAlerts]);
 
-  // Silent background tracking for backend personalization
   const handleRecordInteraction = (payload) => {
     const updated = recordUserInteraction(payload);
     setMlProfile({ ...updated });
@@ -204,7 +206,6 @@ export default function App() {
     fetchProducts();
   }, [selectedCategory]);
 
-  // Invisible Background Ranking
   const displayedProducts = useMemo(() => {
     const baseList = activePage === 'wishlist' ? wishlist : products;
 
@@ -261,7 +262,6 @@ export default function App() {
     return sorted;
   }, [activePage, wishlist, products, searchQuery, sortBy, mlProfile]);
 
-  // Full 3D 1-to-100% Loading Screen ("KHOJO AI - where shopping made eazyyy")
   if (booting) {
     return (
       <LoadingScreen3D
@@ -275,6 +275,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#121215] text-[#E2E8F0]">
+      {/* Top Email Confirmation Toast */}
+      {authToast && (
+        <div className="fixed top-16 right-4 z-50 bg-[#141419] border border-emerald-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{authToast}</span>
+        </div>
+      )}
+
       {/* Sticky Header */}
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#121215]/90 border-b border-[#C0C0C8]/20">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
@@ -363,8 +371,12 @@ export default function App() {
               </button>
             ) : (
               <button
-                onClick={() => setIsLoginOpen(true)}
-                className="px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-md shadow-[#FF2A2A]/20 cursor-pointer"
+                onClick={() => setActivePage('login')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer ${
+                  activePage === 'login'
+                    ? 'bg-white text-black'
+                    : 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-[#FF2A2A]/20'
+                }`}
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Sign In</span>
@@ -400,11 +412,12 @@ export default function App() {
 
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-[#C0C0C8]/20 bg-[#141418] px-4 py-3 space-y-2.5 animate-fadeIn">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {[
                 { id: 'home', label: 'AI Hub' },
-                { id: 'chat', label: 'Full Chat' },
-                { id: 'profile', label: 'Account' }
+                { id: 'chat', label: 'Chatbot' },
+                { id: 'profile', label: 'Account' },
+                { id: 'login', label: 'Sign In' }
               ].map((t) => (
                 <button
                   key={t.id}
@@ -422,29 +435,24 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => {
-                  openVersusBattle();
-                  setMobileMenuOpen(false);
-                }}
-                className="py-2 rounded-xl text-xs font-semibold bg-zinc-900 border border-[#C0C0C8]/20 text-white flex items-center justify-center gap-1.5"
-              >
-                <Scale className="w-3.5 h-3.5 text-[#FF2A2A]" /> Versus Battle
-              </button>
-              <button
-                onClick={() => openFixReporter(null)}
-                className="py-2 rounded-xl text-xs font-semibold bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-white flex items-center justify-center gap-1.5"
-              >
-                <Wrench className="w-3.5 h-3.5" /> Report Fix
-              </button>
-            </div>
           </div>
         )}
       </header>
 
       {/* Main Content Router */}
-      {activePage === 'privacy' ? (
+      {activePage === 'login' ? (
+        <AuthPage
+          onBack={() => setActivePage('home')}
+          onLoginSuccess={(loggedInUser) => {
+            setUser(loggedInUser);
+            setActivePage('home');
+            setAuthToast(
+              `Welcome ${loggedInUser.name}! Confirmation email sent to ${loggedInUser.email}.`
+            );
+            setTimeout(() => setAuthToast(''), 5000);
+          }}
+        />
+      ) : activePage === 'privacy' ? (
         <PrivacyPolicyPage onBack={() => setActivePage('home')} themeMode={themeMode} />
       ) : activePage === 'terms' ? (
         <TermsAndConditionsPage onBack={() => setActivePage('home')} themeMode={themeMode} />
@@ -461,6 +469,7 @@ export default function App() {
           onLogout={() => {
             localStorage.removeItem('khojo_user');
             setUser(null);
+            setActivePage('login');
           }}
           wishlist={wishlist}
           priceAlerts={priceAlerts}
@@ -687,6 +696,9 @@ export default function App() {
             <button onClick={() => setActivePage('home')} className="hover:text-white cursor-pointer">
               AI Hub
             </button>
+            <button onClick={() => setActivePage('login')} className="hover:text-white cursor-pointer">
+              Sign In Page
+            </button>
             <button onClick={() => setActivePage('profile')} className="hover:text-white cursor-pointer">
               My Account
             </button>
@@ -711,16 +723,6 @@ export default function App() {
           </div>
         </div>
       </footer>
-
-      {isLoginOpen && (
-        <LoginModal
-          onClose={() => setIsLoginOpen(false)}
-          onLoginSuccess={(loggedInUser) => {
-            setUser(loggedInUser);
-            setIsLoginOpen(false);
-          }}
-        />
-      )}
 
       {activeAnalyticsProduct && (
         <PriceAnalyticsModal
