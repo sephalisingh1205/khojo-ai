@@ -55,8 +55,8 @@ MODEL_CHAIN = [
 # 3. Initialize FastAPI App
 app = FastAPI(
     title="Khojo AI Backend API",
-    description="Real-World Multi-Channel Auth (Google, OTP, Email), Automated Mailer, ML Ranking & Live Scraper",
-    version="6.1.0"
+    description="Real-World Multi-Channel Auth, Automated Mailer, ML Ranking, Live Scraper & AI Versus Engine",
+    version="6.2.0"
 )
 
 app.add_middleware(
@@ -112,7 +112,7 @@ def send_welcome_email(to_email: str, user_name: str, auth_method: str = "Email"
           <ul style="margin: 8px 0 0; padding-left: 18px; color: #C0C0C8;">
             <li>Chat with the Khojo AI Concierge for live inventory & store policies</li>
             <li>Compare 6-month historical price graphs across Amazon India, Flipkart, Myntra & Nykaa</li>
-            <li>Track instant price drop alerts and saved wishlists</li>
+            <li>Run AI Head-to-Head Versus battles on same-category products</li>
           </ul>
         </div>
         <p style="font-size: 12px; color: #8E8E9E; margin-top: 24px;">
@@ -218,6 +218,10 @@ class ChatResponse(BaseModel):
     reply: str
     products: List[Dict[str, Any]] = []
     mode_used: str = "ai_agent"
+
+class VersusCompareRequest(BaseModel):
+    product_a: Dict[str, Any]
+    product_b: Dict[str, Any]
 
 class IssueReportRequest(BaseModel):
     product_id: Optional[str] = ""
@@ -459,7 +463,6 @@ def verify_phone_otp(req: VerifyOTPRequest, background_tasks: BackgroundTasks):
 
     OTP_STORE.pop(clean_phone, None)
 
-    # Save or update user in database
     if user_email:
         user_record = {
             "name": user_name,
@@ -794,7 +797,7 @@ Live Snippets:
 def health_check():
     return {
         "status": "online",
-        "service": "Khojo AI Production Backend v6.1",
+        "service": "Khojo AI Production Backend v6.2",
         "smtp_configured": bool(SMTP_EMAIL and SMTP_PASSWORD),
         "sms_configured": bool(FAST2SMS_API_KEY)
     }
@@ -904,7 +907,7 @@ def chat_with_assistant(req: ChatRequest, request: Request):
         "You are Khojo AI, India's central conversational shopping concierge covering Amazon India, Flipkart, Myntra, and Nykaa. "
         "Keep your response friendly, concise (2-3 sentences max), and helpful. Use ₹ for prices. "
         f"{'Note: You just fetched and auto-categorized these items LIVE from Indian shopping sites! ' if scraped_live else ''}"
-        "Highlight the best options from the matching products below, and remind the user they can click 'Compare' for the 6-month price graph or 'Buy Now'.\n\n"
+        "Highlight the best options from the matching products below, and remind the user they can click 'Price Graph' for the 6-month history, '+ Versus' to compare, or 'Buy Now'.\n\n"
         f"Matching Catalog Products:\n{product_context}"
     )
 
@@ -936,7 +939,7 @@ def chat_with_assistant(req: ChatRequest, request: Request):
         reply_text = (
             f"I found **{len(matched_products)} great options** for you under **{top.get('category')}**! "
             f"The top pick is the **{top.get('name')}** by {top.get('brand')} on **{top.get('platform')}** for **₹{top.get('price_inr')}**. "
-            "Tap **Compare** to inspect the 6-month price history or click **Buy Now**!"
+            "Tap **Price Graph** to inspect the 6-month history or click **Buy Now**!"
         )
     else:
         reply_text = (
@@ -947,7 +950,133 @@ def chat_with_assistant(req: ChatRequest, request: Request):
     return ChatResponse(reply=reply_text, products=matched_products, mode_used="ml_discovery")
 
 # =====================================================================
-# 11. DATABASE FIX REPORTER & LINK RESOLVER
+# 11. AI HEAD-TO-HEAD VERSUS COMPARISON ENGINE (SAME CATEGORY ONLY)
+# =====================================================================
+
+@app.post("/api/versus-ai")
+def generate_ai_versus_comparison(req: VersusCompareRequest):
+    prod_a = req.product_a or {}
+    prod_b = req.product_b or {}
+
+    cat_a = str(prod_a.get("category", "")).strip()
+    cat_b = str(prod_b.get("category", "")).strip()
+
+    if cat_a.lower() != cat_b.lower():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Category Mismatch: You cannot compare '{cat_a}' with '{cat_b}'. Please add items from the same category!"
+        )
+
+    prompt = f"""
+You are the Khojo AI Chief Product Analyst in India. Compare these two {cat_a} products head-to-head:
+
+Product A:
+- Name: {prod_a.get("name")}
+- Brand: {prod_a.get("brand")}
+- Price: ₹{prod_a.get("price_inr")} (MRP: ₹{prod_a.get("mrp_inr", prod_a.get("price_inr"))})
+- Store: {prod_a.get("platform")}
+- Rating: {prod_a.get("rating", 4.3)} / 5
+
+Product B:
+- Name: {prod_b.get("name")}
+- Brand: {prod_b.get("brand")}
+- Price: ₹{prod_b.get("price_inr")} (MRP: ₹{prod_b.get("mrp_inr", prod_b.get("price_inr"))})
+- Store: {prod_b.get("platform")}
+- Rating: {prod_b.get("rating", 4.3)} / 5
+
+Return ONLY a valid raw JSON object (no markdown formatting, no backticks) with these exact keys:
+{{
+  "score_a": <integer 65-98 representing overall AI mark out of 100 for Product A>,
+  "score_b": <integer 65-98 representing overall AI mark out of 100 for Product B>,
+  "winner": "<'A' or 'B'>",
+  "headline": "<Punchy 1-line summary of which wins and why>",
+  "metrics": [
+    {{"label": "Build & Quality", "score_a": <int 60-99>, "score_b": <int 60-99>}},
+    {{"label": "Value for Money", "score_a": <int 60-99>, "score_b": <int 60-99>}},
+    {{"label": "Brand & Reliability", "score_a": <int 60-99>, "score_b": <int 60-99>}},
+    {{"label": "Daily Comfort / Performance", "score_a": <int 60-99>, "score_b": <int 60-99>}}
+  ],
+  "when_to_buy_a": [
+    "<Specific condition/situation 1 where user should buy Product A>",
+    "<Specific condition/situation 2 where user should buy Product A>",
+    "<Specific condition/situation 3 where user should buy Product A>"
+  ],
+  "when_to_buy_b": [
+    "<Specific condition/situation 1 where user should buy Product B>",
+    "<Specific condition/situation 2 where user should buy Product B>",
+    "<Specific condition/situation 3 where user should buy Product B>"
+  ],
+  "worth_money_verdict": {{
+    "product_a_status": "<'100% Worth the Money' or 'Good Situational Buy' or 'Overpriced / Not Worth It'>",
+    "product_a_reason": "<1-2 sentence explanation on whether Product A is worth ₹{prod_a.get('price_inr')}>",
+    "product_b_status": "<'100% Worth the Money' or 'Good Situational Buy' or 'Overpriced / Not Worth It'>",
+    "product_b_reason": "<1-2 sentence explanation on whether Product B is worth ₹{prod_b.get('price_inr')}>",
+    "best_offer_summary": "<Clear advice on which store deal is the smarter financial pick right now>"
+  }}
+}}
+"""
+
+    if GROQ_API_KEY:
+        for model_name in MODEL_CHAIN:
+            try:
+                completion = llm_client.chat.completions.create(
+                    model=model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                    max_tokens=800
+                )
+                raw = completion.choices[0].message.content.strip()
+                json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group(0))
+                    return {"status": "success", "analysis": parsed, "model": model_name}
+            except Exception as e:
+                print(f"Versus AI error on {model_name}: {e}")
+                continue
+
+    # Deterministic Intelligent Fallback if LLM is offline
+    price_a = float(prod_a.get("price_inr") or 1999)
+    price_b = float(prod_b.get("price_inr") or 1999)
+    rate_a = float(prod_a.get("rating") or 4.3)
+    rate_b = float(prod_b.get("rating") or 4.3)
+
+    val_a = min(96, int(78 + (rate_a - 4.0) * 18 + (10 if price_a <= price_b else 0)))
+    val_b = min(96, int(78 + (rate_b - 4.0) * 18 + (10 if price_b < price_a else 0)))
+    winner = "A" if val_a >= val_b else "B"
+
+    fallback_analysis = {
+        "score_a": val_a,
+        "score_b": val_b,
+        "winner": winner,
+        "headline": f"{prod_a.get('name') if winner == 'A' else prod_b.get('name')} wins on overall price-to-performance ratio in {cat_a}.",
+        "metrics": [
+            {"label": "Build & Quality", "score_a": min(98, int(rate_a * 20)), "score_b": min(98, int(rate_b * 20))},
+            {"label": "Value for Money", "score_a": 92 if price_a <= price_b else 79, "score_b": 92 if price_b < price_a else 79},
+            {"label": "Brand & Reliability", "score_a": 88, "score_b": 86},
+            {"label": "Daily Performance", "score_a": val_a, "score_b": val_b}
+        ],
+        "when_to_buy_a": [
+            f"Choose this if you prefer {prod_a.get('brand')}'s signature build quality in {cat_a}.",
+            f"Best if you are shopping on {prod_a.get('platform')} and want verified customer satisfaction ({rate_a}★).",
+            f"Ideal if your budget aligns with ₹{int(price_a):,} for long-term daily use."
+        ],
+        "when_to_buy_b": [
+            f"Choose this if you specifically want {prod_b.get('brand')} styling and features.",
+            f"Best if you have bank offers or loyalty points on {prod_b.get('platform')}.",
+            f"Ideal if {'saving ₹' + str(int(abs(price_a - price_b))) + ' upfront matters most' if price_b < price_a else 'you are willing to pay for premium aesthetics'}."
+        ],
+        "worth_money_verdict": {
+            "product_a_status": "100% Worth the Money" if val_a >= val_b else "Good Situational Buy",
+            "product_a_reason": f"At ₹{int(price_a):,} on {prod_a.get('platform')}, it delivers strong {rate_a}★ reliability for its segment.",
+            "product_b_status": "100% Worth the Money" if val_b > val_a else "Good Situational Buy",
+            "product_b_reason": f"At ₹{int(price_b):,} on {prod_b.get('platform')}, it is a solid contender depending on your brand preference.",
+            "best_offer_summary": f"{prod_a.get('name') if price_a <= price_b else prod_b.get('name')} offers the lowest out-of-pocket cost right now."
+        }
+    }
+    return {"status": "success", "analysis": fallback_analysis, "model": "khojo_heuristic_engine"}
+
+# =====================================================================
+# 12. DATABASE FIX REPORTER & LINK RESOLVER
 # =====================================================================
 FALLBACK_REPORTS_LOG: List[Dict[str, Any]] = []
 
