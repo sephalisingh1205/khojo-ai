@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   User,
   Lock,
@@ -19,52 +19,82 @@ import {
   KeyRound
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
+import { supabase } from '../supabaseClient';
 import { getMLProfile, resetMLProfile } from '../utils/mlEngine';
 import Interactive3DBackground from './Interactive3DBackground';
 
-// Dedicated Full-Page Authentication View
 export function AuthPage({ onBack, onLoginSuccess }) {
-  // Tabs: 'email' | 'phone' | 'google'
+  // 'email' | 'phone' | 'google'
   const [authTab, setAuthTab] = useState('email');
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // Form States
+  // Real User Inputs (No hardcoded demo names)
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Phone OTP States
+  // Phone + Email OTP Inputs
   const [phone, setPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [demoOtpCode, setDemoOtpCode] = useState('');
+  const [deliveryChannelMsg, setDeliveryChannelMsg] = useState('');
   const otpRefs = useRef([]);
-
-  // Google Account Chooser State
-  const [googleEmail, setGoogleEmail] = useState('nikhil.cse@gmail.com');
-  const [googleName, setGoogleName] = useState('Nikhil');
 
   // Status States
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [emailReceipt, setEmailReceipt] = useState(null);
 
+  // Check if user just returned from a Real Google OAuth Redirect
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const gUser = session.user;
+        const displayName =
+          gUser.user_metadata?.full_name ||
+          gUser.email?.split('@')[0] ||
+          'Verified User';
+
+        // Trigger backend welcome email for Google OAuth user
+        fetch(`${API_BASE_URL}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: displayName,
+            email: gUser.email,
+            google_id: gUser.id,
+            avatar_url: gUser.user_metadata?.avatar_url || '',
+            ml_profile: getMLProfile()
+          })
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data?.user) {
+              localStorage.setItem('khojo_auth_token', session.access_token);
+              localStorage.setItem('khojo_user', JSON.stringify(data.user));
+              onLoginSuccess(data.user);
+            }
+          })
+          .catch(() => {});
+      }
+    });
+  }, [onLoginSuccess]);
+
   const finalizeLogin = (data) => {
-    localStorage.setItem('khojo_auth_token', data.token || 'verified_token');
+    localStorage.setItem('khojo_auth_token', data.token);
     localStorage.setItem('khojo_user', JSON.stringify(data.user));
-    // Show "Successful Login Email Sent" screen for 2.2 seconds before entering hub
     setEmailReceipt({
       user: data.user,
-      message:
-        data.message ||
-        `Welcome email successfully sent to ${data.user.email}!`
+      emailDelivered: data.email_sent,
+      message: data.message
     });
     setTimeout(() => {
       onLoginSuccess(data.user);
-    }, 2200);
+    }, 2400);
   };
 
-  // 1. Email Login / Signup Handler
+  // 1. REAL EMAIL & PASSWORD SIGNUP / LOGIN
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -72,8 +102,13 @@ export function AuthPage({ onBack, onLoginSuccess }) {
 
     const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login';
     const payload = isSignUp
-      ? { name, email, password, ml_profile: getMLProfile() }
-      : { email, password };
+      ? {
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          ml_profile: getMLProfile()
+        }
+      : { email: email.trim(), password };
 
     try {
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -82,78 +117,56 @@ export function AuthPage({ onBack, onLoginSuccess }) {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Authentication failed');
+      if (!res.ok) {
+        throw new Error(data.detail || 'Authentication failed. Please check your credentials.');
+      }
       finalizeLogin(data);
     } catch (err) {
-      if (err.message.includes('Failed to fetch')) {
-        const cleanName =
-          name.trim() || (email.includes('@') ? email.split('@')[0] : 'Nikhil');
-        finalizeLogin({
-          token: 'local_token',
-          user: {
-            name: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
-            email: email.trim(),
-            authMethod: 'Email',
-            tier: 'Verified Member',
-            joinedAt: 'Nov 2026',
-            emailSent: true
-          },
-          message: `Login successful! Confirmation email sent to ${email.trim()}.`
-        });
-      } else {
-        setErrorMsg(err.message);
-      }
+      setErrorMsg(
+        err.message || 'Unable to connect to authentication server. Please try again.'
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 2. Google OAuth Handler
-  const handleGoogleLogin = async (selectedName, selectedEmail) => {
+  // 2. REAL GOOGLE OAUTH 2.0 LOGIN
+  const handleRealGoogleOAuth = async () => {
     setErrorMsg('');
     setSubmitting(true);
-    const gName = (selectedName || googleName || 'Nikhil').trim();
-    const gEmail = (selectedEmail || googleEmail || 'nikhil@gmail.com').trim();
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: gName,
-          email: gEmail,
-          google_id: `gid_${Date.now()}`,
-          ml_profile: getMLProfile()
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Google Auth failed');
-      finalizeLogin(data);
-    } catch {
-      finalizeLogin({
-        token: 'google_token',
-        user: {
-          name: gName,
-          email: gEmail,
-          authMethod: 'Google',
-          tier: 'Google Verified',
-          joinedAt: 'Nov 2026',
-          emailSent: true
-        },
-        message: `Authenticated via Google! Welcome email sent to ${gEmail}.`
-      });
-    } finally {
+      if (supabase) {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        if (error) throw error;
+        return;
+      } else {
+        throw new Error(
+          'To enable 1-click Google OAuth redirect, add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, or use Email / Phone OTP login.'
+        );
+      }
+    } catch (err) {
+      setErrorMsg(err.message);
       setSubmitting(false);
     }
   };
 
-  // 3. Phone OTP Send Handler
+  // 3. REAL PHONE / EMAIL OTP DISPATCH
   const handleSendOTP = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+    if (digits.length !== 10) {
+      setErrorMsg('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMsg('Please enter your email address so we can send your OTP & login receipt.');
       return;
     }
 
@@ -163,37 +176,36 @@ export function AuthPage({ onBack, onLoginSuccess }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: digits.slice(-10),
-          email: email || `${digits.slice(-10)}@khojo.ai`,
-          name: name || 'Nikhil'
+          phone: digits,
+          email: email.trim(),
+          name: name.trim()
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Could not send OTP');
-      setDemoOtpCode(data.demo_otp || '123456');
+      if (!res.ok) throw new Error(data.detail || 'Could not send OTP.');
+
+      setDeliveryChannelMsg(
+        data.message || `A 6-digit verification code has been sent to +91 ${digits} and ${email.trim()}.`
+      );
       setOtpSent(true);
-    } catch {
-      setDemoOtpCode('123456');
-      setOtpSent(true);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to dispatch OTP. Please check your connection.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 4. Phone OTP Verify Handler
+  // 4. REAL OTP VERIFICATION
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     const code = otpDigits.join('');
     if (code.length < 6) {
-      setErrorMsg('Please enter the complete 6-digit OTP.');
+      setErrorMsg('Please enter the complete 6-digit OTP code.');
       return;
     }
 
     const digits = phone.replace(/\D/g, '').slice(-10);
-    const targetEmail = email.trim() || `${digits}@khojo.ai`;
-    const targetName = name.trim() || `Nikhil`;
-
     setSubmitting(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
@@ -202,32 +214,16 @@ export function AuthPage({ onBack, onLoginSuccess }) {
         body: JSON.stringify({
           phone: digits,
           otp: code,
-          email: targetEmail,
-          name: targetName,
+          email: email.trim(),
+          name: name.trim(),
           ml_profile: getMLProfile()
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Invalid OTP');
+      if (!res.ok) throw new Error(data.detail || 'Invalid or expired OTP.');
       finalizeLogin(data);
     } catch (err) {
-      if (code === demoOtpCode || code === '123456') {
-        finalizeLogin({
-          token: 'otp_token',
-          user: {
-            name: targetName,
-            email: targetEmail,
-            phone: `+91 ${digits}`,
-            authMethod: 'Phone OTP',
-            tier: 'Mobile Verified',
-            joinedAt: 'Nov 2026',
-            emailSent: true
-          },
-          message: `Mobile +91 ${digits} verified! Confirmation email sent to ${targetEmail}.`
-        });
-      } else {
-        setErrorMsg(err.message || 'Invalid OTP code. Try again.');
-      }
+      setErrorMsg(err.message || 'Invalid OTP code. Please check your inbox/SMS and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -243,9 +239,10 @@ export function AuthPage({ onBack, onLoginSuccess }) {
     }
   };
 
-  const autofillDemoOtp = () => {
-    const code = (demoOtpCode || '123456').split('');
-    setOtpDigits(code);
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
   };
 
   return (
@@ -253,7 +250,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
       <Interactive3DBackground />
 
       <div className="relative z-10 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden border border-[#C0C0C8]/25 bg-[#141419]/95 backdrop-blur-2xl shadow-2xl card-3d-shell">
-        {/* Left Branding & Features Column */}
+        {/* Left Branding Column */}
         <div className="lg:col-span-5 bg-gradient-to-br from-[#1A1A22] via-[#221216] to-[#111115] p-7 sm:p-10 border-b lg:border-b-0 lg:border-r border-[#C0C0C8]/20 flex flex-col justify-between">
           <div className="space-y-6">
             <button
@@ -265,29 +262,29 @@ export function AuthPage({ onBack, onLoginSuccess }) {
 
             <div>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-[#FF2A2A]/20 text-[#FF2A2A] border border-[#FF2A2A]/40">
-                <Sparkles className="w-3 h-3" /> Multi-Channel Security
+                <Sparkles className="w-3 h-3" /> Real-Time Account Vault
               </span>
               <h1 className="font-harmond text-4xl sm:text-5xl font-bold text-white mt-3 leading-none">
-                Khojo <span className="italic text-[#FF2A2A]">AI</span> Vault
+                Khojo <span className="italic text-[#FF2A2A]">AI</span>
               </h1>
               <p className="text-xs sm:text-sm text-[#C0C0C8] mt-2 leading-relaxed">
-                Where shopping made eazyyy. Sign in with Google, Mobile OTP, or Email to unlock personalized price intelligence and instant email alerts.
+                Where shopping made eazyyy. Sign in with your Google Account, Mobile OTP, or Email to sync your wishlist, price alerts, and receive instant login email confirmations.
               </p>
             </div>
 
             <div className="space-y-3 pt-2">
               {[
                 {
-                  title: 'Google & +91 Mobile OTP',
-                  desc: 'Fast, passwordless 1-tap verification.'
+                  title: 'Google OAuth 2.0 & Mobile OTP',
+                  desc: 'Secure authentication for every user across India.'
                 },
                 {
-                  title: 'Instant Login Email Receipt',
-                  desc: 'Receive an automated confirmation email on every sign-in.'
+                  title: 'Real-Time Welcome Email',
+                  desc: 'Instant confirmation email sent directly to your inbox on login.'
                 },
                 {
-                  title: 'Cross-Store Price Alerts',
-                  desc: 'Sync wishlists across Amazon India, Flipkart, Myntra & Nykaa.'
+                  title: 'Personal Deal & Wishlist Sync',
+                  desc: 'Access your saved items and price drop alerts from any device.'
                 }
               ].map((feat, i) => (
                 <div
@@ -308,7 +305,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400" /> 256-Bit Encrypted Auth
             </span>
-            <span>Khojo AI v6.0</span>
+            <span>Khojo AI Production</span>
           </div>
         </div>
 
@@ -320,32 +317,34 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                 <Mail className="w-10 h-10 animate-bounce" />
               </div>
               <span className="inline-block px-3.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                ✓ Login Successful • Email Dispatched
+                ✓ Authentication Verified
               </span>
               <h3 className="font-harmond text-4xl font-bold text-white">
-                Welcome aboard, {emailReceipt.user.name}!
+                Welcome, {emailReceipt.user.name}!
               </h3>
               <p className="text-xs sm:text-sm text-[#C0C0C8] max-w-md mx-auto leading-relaxed">
                 {emailReceipt.message}
               </p>
-              <div className="p-4 rounded-2xl bg-[#0D0D10] border border-[#C0C0C8]/20 max-w-md mx-auto text-left text-xs space-y-1">
+              <div className="p-4 rounded-2xl bg-[#0D0D10] border border-[#C0C0C8]/20 max-w-md mx-auto text-left text-xs space-y-1.5">
                 <div className="flex justify-between text-[#C0C0C8]">
-                  <span>Recipient:</span>
+                  <span>Registered Email:</span>
                   <strong className="text-white">{emailReceipt.user.email}</strong>
                 </div>
                 <div className="flex justify-between text-[#C0C0C8]">
-                  <span>Auth Method:</span>
+                  <span>Verification Method:</span>
                   <strong className="text-[#FF2A2A]">{emailReceipt.user.authMethod}</strong>
                 </div>
                 <div className="flex justify-between text-[#C0C0C8]">
-                  <span>Subject:</span>
+                  <span>Email Confirmation:</span>
                   <strong className="text-emerald-400">
-                    ✨ Welcome to Khojo AI — Login Successful!
+                    {emailReceipt.emailDelivered
+                      ? 'Sent to Inbox ✓'
+                      : 'Logged (Configure SMTP_EMAIL on Render)'}
                   </strong>
                 </div>
               </div>
               <p className="text-[11px] text-zinc-400">
-                Redirecting you to the Khojo AI Conversational Hub...
+                Redirecting you to Khojo AI...
               </p>
             </div>
           ) : (
@@ -353,23 +352,23 @@ export function AuthPage({ onBack, onLoginSuccess }) {
               <div>
                 <h2 className="font-harmond text-3xl sm:text-4xl font-bold text-white">
                   {authTab === 'google'
-                    ? 'Continue with Google'
+                    ? 'Sign In with Google'
                     : authTab === 'phone'
-                    ? 'Mobile Number OTP Login'
+                    ? 'Mobile & Email OTP Login'
                     : isSignUp
                     ? 'Create Your Khojo AI Account'
                     : 'Sign In to Your Account'}
                 </h2>
                 <p className="text-xs text-[#C0C0C8] mt-1">
-                  Choose your preferred login method below. A confirmation email will be sent upon login.
+                  Select your preferred verification method below.
                 </p>
               </div>
 
               {/* 3-Method Switcher Tabs */}
               <div className="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-[#0D0D10] border border-[#C0C0C8]/20">
                 {[
-                  { id: 'email', label: 'Email Auth', icon: Mail },
-                  { id: 'phone', label: 'Phone OTP', icon: Phone },
+                  { id: 'email', label: 'Email & Password', icon: Mail },
+                  { id: 'phone', label: 'Mobile OTP', icon: Phone },
                   { id: 'google', label: 'Google Auth', icon: Sparkles }
                 ].map((tab) => {
                   const Icon = tab.icon;
@@ -382,20 +381,20 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                         setAuthTab(tab.id);
                         setErrorMsg('');
                       }}
-                      className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      className={`py-2.5 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         active
                           ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-md shadow-[#FF2A2A]/25'
                           : 'text-[#C0C0C8] hover:text-white'
                       }`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
-                      <span>{tab.label}</span>
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{tab.label}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* TAB 1: EMAIL & PASSWORD FORM */}
+              {/* TAB 1: REAL EMAIL & PASSWORD FORM */}
               {authTab === 'email' && (
                 <form onSubmit={handleEmailSubmit} className="space-y-4 animate-fadeIn">
                   {isSignUp && (
@@ -410,7 +409,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                           required={isSignUp}
                           value={name}
                           onChange={(e) => setName(e.target.value)}
-                          placeholder="e.g. Nikhil"
+                          placeholder="Enter your full name"
                           className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0D0D10] border border-[#C0C0C8]/25 text-sm text-white focus:outline-none focus:border-[#FF2A2A]"
                         />
                       </div>
@@ -419,7 +418,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
 
                   <div>
                     <label className="text-[11px] font-bold uppercase tracking-wider text-[#C0C0C8] block mb-1">
-                      Email Address (For Login & Confirmation Email) *
+                      Email Address *
                     </label>
                     <div className="relative">
                       <Mail className="w-4 h-4 text-[#C0C0C8] absolute left-3.5 top-3" />
@@ -428,7 +427,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
+                        placeholder="name@example.com"
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0D0D10] border border-[#C0C0C8]/25 text-sm text-white focus:outline-none focus:border-[#FF2A2A]"
                       />
                     </div>
@@ -443,9 +442,10 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                       <input
                         type="password"
                         required
+                        minLength={6}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder="Minimum 6 characters"
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0D0D10] border border-[#C0C0C8]/25 text-sm text-white focus:outline-none focus:border-[#FF2A2A]"
                       />
                     </div>
@@ -466,11 +466,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <span>
-                          {isSignUp
-                            ? 'Create Account & Send Welcome Email'
-                            : 'Sign In & Send Confirmation Email'}
-                        </span>
+                        <span>{isSignUp ? 'Create Account' : 'Sign In'}</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -486,22 +482,14 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                       className="text-[#C0C0C8] hover:text-[#FF2A2A] underline cursor-pointer"
                     >
                       {isSignUp
-                        ? 'Already have an account? Sign In'
-                        : 'New to Khojo AI? Create an Account'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setAuthTab('google')}
-                      className="text-white hover:text-[#FF2A2A] font-semibold cursor-pointer"
-                    >
-                      Use Google Instead →
+                        ? 'Already registered? Sign In'
+                        : 'Don’t have an account? Create one'}
                     </button>
                   </div>
                 </form>
               )}
 
-              {/* TAB 2: PHONE NUMBER (+91) OTP FORM */}
+              {/* TAB 2: REAL PHONE + EMAIL OTP FORM */}
               {authTab === 'phone' && (
                 <div className="space-y-4 animate-fadeIn">
                   {!otpSent ? (
@@ -509,26 +497,27 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-[11px] font-bold uppercase tracking-wider text-[#C0C0C8] block mb-1">
-                            Your Name
+                            Full Name *
                           </label>
                           <input
                             type="text"
+                            required
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. Nikhil"
+                            placeholder="Enter your name"
                             className="w-full px-3.5 py-2.5 rounded-xl bg-[#0D0D10] border border-[#C0C0C8]/25 text-sm text-white focus:outline-none focus:border-[#FF2A2A]"
                           />
                         </div>
                         <div>
                           <label className="text-[11px] font-bold uppercase tracking-wider text-[#C0C0C8] block mb-1">
-                            Email (For Login Receipt) *
+                            Email Address (For OTP & Receipt) *
                           </label>
                           <input
                             type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@example.com"
+                            placeholder="name@example.com"
                             className="w-full px-3.5 py-2.5 rounded-xl bg-[#0D0D10] border border-[#C0C0C8]/25 text-sm text-white focus:outline-none focus:border-[#FF2A2A]"
                           />
                         </div>
@@ -548,7 +537,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                             maxLength={10}
                             value={phone}
                             onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                            placeholder="9876543210"
+                            placeholder="10-digit mobile number"
                             className="w-full px-3.5 py-2.5 bg-transparent text-sm text-white focus:outline-none tracking-wider"
                           />
                         </div>
@@ -570,38 +559,20 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                         ) : (
                           <>
                             <KeyRound className="w-4 h-4" />
-                            <span>Send 6-Digit OTP to +91 {phone || 'Mobile'}</span>
+                            <span>Send 6-Digit Verification OTP</span>
                           </>
                         )}
                       </button>
                     </form>
                   ) : (
                     <form onSubmit={handleVerifyOTP} className="space-y-4">
-                      {/* Instant OTP SMS Notification Banner */}
-                      <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-between gap-3">
-                        <div className="text-xs">
-                          <span className="font-bold text-emerald-300 block">
-                            💬 SMS OTP Sent to +91 {phone}
-                          </span>
-                          <span className="text-[#E2E8F0]">
-                            Your Khojo AI verification code is:{' '}
-                            <strong className="text-white font-mono text-sm underline">
-                              {demoOtpCode}
-                            </strong>
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={autofillDemoOtp}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-400 text-black font-bold text-[11px] shrink-0 cursor-pointer"
-                        >
-                          Auto-Fill OTP
-                        </button>
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-xs text-emerald-200 leading-relaxed">
+                        {deliveryChannelMsg}
                       </div>
 
                       <div>
                         <label className="text-[11px] font-bold uppercase tracking-wider text-[#C0C0C8] block mb-2">
-                          Enter 6-Digit OTP
+                          Enter 6-Digit Verification Code
                         </label>
                         <div className="grid grid-cols-6 gap-2">
                           {otpDigits.map((digit, idx) => (
@@ -609,9 +580,11 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                               key={idx}
                               ref={(el) => (otpRefs.current[idx] = el)}
                               type="text"
+                              inputMode="numeric"
                               maxLength={1}
                               value={digit}
                               onChange={(e) => handleOtpInputChange(idx, e.target.value)}
+                              onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                               className="w-full h-12 text-center text-lg font-bold rounded-xl bg-[#0D0D10] border border-[#C0C0C8]/30 text-white focus:outline-none focus:border-[#FF2A2A]"
                             />
                           ))}
@@ -630,10 +603,11 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                           onClick={() => {
                             setOtpSent(false);
                             setOtpDigits(['', '', '', '', '', '']);
+                            setErrorMsg('');
                           }}
                           className="px-4 py-3 rounded-xl border border-[#C0C0C8]/25 text-xs font-semibold text-[#C0C0C8] hover:text-white cursor-pointer"
                         >
-                          Change Number
+                          Edit Details
                         </button>
                         <button
                           type="submit"
@@ -644,7 +618,7 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <>
-                              <span>Verify OTP & Send Confirmation Email</span>
+                              <span>Verify & Sign In</span>
                               <ArrowRight className="w-4 h-4" />
                             </>
                           )}
@@ -655,84 +629,49 @@ export function AuthPage({ onBack, onLoginSuccess }) {
                 </div>
               )}
 
-              {/* TAB 3: GOOGLE OAUTH SIGN-IN */}
+              {/* TAB 3: REAL GOOGLE OAUTH 2.0 */}
               {authTab === 'google' && (
                 <div className="space-y-4 animate-fadeIn">
-                  <div className="p-4 rounded-2xl bg-[#0D0D10] border border-[#C0C0C8]/20 space-y-3">
-                    <div className="flex items-center gap-2.5 border-b border-white/10 pb-3">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path
-                          fill="#EA4335"
-                          d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-                        />
-                        <path
-                          fill="#4285F4"
-                          d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-                        />
-                        <path
-                          fill="#FBBC05"
-                          d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
-                        />
-                        <path
-                          fill="#34A853"
-                          d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.9 7.4 24 12 24z"
-                        />
-                      </svg>
-                      <span className="text-xs font-bold text-white">
-                        Google Identity OAuth 2.0
-                      </span>
-                    </div>
+                  <div className="p-6 rounded-2xl bg-[#0D0D10] border border-[#C0C0C8]/20 text-center space-y-4">
+                    <p className="text-xs text-[#C0C0C8] leading-relaxed">
+                      Sign in securely using your Google account via OAuth 2.0. We will automatically send a login confirmation email to your Gmail address.
+                    </p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-[#C0C0C8] block mb-1">
-                          Google Display Name
-                        </label>
-                        <input
-                          type="text"
-                          value={googleName}
-                          onChange={(e) => setGoogleName(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-[#16161C] border border-[#C0C0C8]/25 text-xs text-white focus:outline-none focus:border-[#FF2A2A]"
-                        />
+                    {errorMsg && (
+                      <div className="p-3 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-xs text-rose-300 text-left">
+                        {errorMsg}
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-[#C0C0C8] block mb-1">
-                          Google Email Address
-                        </label>
-                        <input
-                          type="email"
-                          value={googleEmail}
-                          onChange={(e) => setGoogleEmail(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-[#16161C] border border-[#C0C0C8]/25 text-xs text-white focus:outline-none focus:border-[#FF2A2A]"
-                        />
-                      </div>
-                    </div>
+                    )}
 
                     <button
                       type="button"
                       disabled={submitting}
-                      onClick={() => handleGoogleLogin(googleName, googleEmail)}
-                      className="w-full py-3 rounded-xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs flex items-center justify-center gap-2.5 shadow-lg transition-all cursor-pointer"
+                      onClick={handleRealGoogleOAuth}
+                      className="w-full py-3.5 rounded-xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs sm:text-sm flex items-center justify-center gap-3 shadow-lg transition-all cursor-pointer"
                     >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
-                        <path
-                          fill="#EA4335"
-                          d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-                        />
-                        <path
-                          fill="#4285F4"
-                          d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-                        />
-                        <path
-                          fill="#FBBC05"
-                          d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
-                        />
-                        <path
-                          fill="#34A853"
-                          d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.9 7.4 24 12 24z"
-                        />
-                      </svg>
-                      <span>Continue as {googleName || 'User'} ({googleEmail})</span>
+                      {submitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
+                      ) : (
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path
+                            fill="#EA4335"
+                            d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                          />
+                          <path
+                            fill="#4285F4"
+                            d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                          />
+                          <path
+                            fill="#FBBC05"
+                            d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 13.5s.6 4.5 1.6 6.5l3.7-2.9z"
+                          />
+                          <path
+                            fill="#34A853"
+                            d="M12 24c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.9 7.4 24 12 24z"
+                          />
+                        </svg>
+                      )}
+                      <span>Continue with Google</span>
                     </button>
                   </div>
                 </div>
@@ -745,7 +684,6 @@ export function AuthPage({ onBack, onLoginSuccess }) {
   );
 }
 
-// Keep LoginModal export as alias so any legacy import works seamlessly
 export const LoginModal = AuthPage;
 
 export function ProfileDashboard({
@@ -760,6 +698,9 @@ export function ProfileDashboard({
   const handleBackendLogout = async () => {
     const token = localStorage.getItem('khojo_auth_token');
     try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -774,25 +715,19 @@ export function ProfileDashboard({
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8 animate-fadeIn">
-      {/* User Account Banner */}
       <div className="card-3d-shell p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#16161B] via-[#211316] to-[#16161B] border border-[#C0C0C8]/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-2xl">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FF2A2A] to-[#991B1B] flex items-center justify-center text-white font-harmond text-3xl font-bold shadow-lg shadow-[#FF2A2A]/30">
-            {(user?.name || 'G')[0]}
+            {(user?.name || 'U')[0].toUpperCase()}
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-[#FF2A2A]/20 text-[#FF2A2A] border border-[#FF2A2A]/40">
-                {user?.tier || 'Verified Member'}
+                {user ? user.tier || 'Verified Member' : 'Guest Session'}
               </span>
               {user?.authMethod && (
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  ✓ Signed in via {user.authMethod}
-                </span>
-              )}
-              {user?.emailSent && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/10 text-[#E2E8F0]">
-                  📧 Welcome Email Sent
+                  ✓ {user.authMethod}
                 </span>
               )}
             </div>
@@ -800,7 +735,8 @@ export function ProfileDashboard({
               {user ? `${user.name}'s Account` : 'Guest Profile'}
             </h2>
             <p className="text-xs text-[#C0C0C8]">
-              {user?.email} {user?.phone ? `• ${user.phone}` : ''}
+              {user?.email || 'Sign in to sync your saved wishlist and price drop alerts across devices.'}
+              {user?.phone ? ` • ${user.phone}` : ''}
             </p>
           </div>
         </div>
@@ -832,7 +768,6 @@ export function ProfileDashboard({
         </div>
       </div>
 
-      {/* Saved Alerts, Wishlist Summary & Recent Searches */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="card-3d-shell lg:col-span-7 p-6 rounded-3xl bg-[#141418] border border-[#C0C0C8]/25 space-y-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">

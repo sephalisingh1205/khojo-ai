@@ -7,6 +7,7 @@ import secrets
 import random
 import smtplib
 import urllib.parse
+import urllib.request
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import List, Optional, Dict, Any
@@ -27,11 +28,12 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Optional SMTP Credentials for Real Email Delivery (e.g., Gmail App Password)
-SMTP_EMAIL = os.getenv("SMTP_EMAIL", "")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+# Real Production Email & SMS Credentials (Set in Render Environment Variables)
+SMTP_EMAIL = os.getenv("SMTP_EMAIL", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com").strip()
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY", "").strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("Missing SUPABASE_URL or SUPABASE_KEY in .env file!")
@@ -53,8 +55,8 @@ MODEL_CHAIN = [
 # 3. Initialize FastAPI App
 app = FastAPI(
     title="Khojo AI Backend API",
-    description="Multi-Channel Auth (Google, OTP, Email), Automated Mailer, ML Engine & Live Scraper",
-    version="6.0.0"
+    description="Real-World Multi-Channel Auth (Google, OTP, Email), Automated Mailer, ML Ranking & Live Scraper",
+    version="6.1.0"
 )
 
 app.add_middleware(
@@ -86,11 +88,11 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(f"khojo_salt_{password}".encode("utf-8")).hexdigest()
 
 # =====================================================================
-# 5. AUTOMATED WELCOME / SUCCESSFUL LOGIN EMAIL DISPATCHER
+# 5. REAL-TIME EMAIL DISPATCHERS (WELCOME EMAIL & OTP VERIFICATION EMAIL)
 # =====================================================================
-def send_welcome_email(to_email: str, user_name: str, auth_method: str = "Email"):
-    """Sends a styled HTML confirmation email upon successful login/signup."""
-    if not to_email or "@" not in to_email:
+def send_welcome_email(to_email: str, user_name: str, auth_method: str = "Email") -> bool:
+    """Sends a styled HTML confirmation email upon successful login or signup."""
+    if not to_email or "@" not in to_email or not (SMTP_EMAIL and SMTP_PASSWORD):
         return False
 
     subject = "✨ Welcome to Khojo AI — Login Successful!"
@@ -109,7 +111,7 @@ def send_welcome_email(to_email: str, user_name: str, auth_method: str = "Email"
           <strong>What you can do now:</strong>
           <ul style="margin: 8px 0 0; padding-left: 18px; color: #C0C0C8;">
             <li>Chat with the Khojo AI Concierge for live inventory & store policies</li>
-            <li>Compare 6-month historical price graphs across Amazon, Flipkart, Myntra & Nykaa</li>
+            <li>Compare 6-month historical price graphs across Amazon India, Flipkart, Myntra & Nykaa</li>
             <li>Track instant price drop alerts and saved wishlists</li>
           </ul>
         </div>
@@ -120,26 +122,52 @@ def send_welcome_email(to_email: str, user_name: str, auth_method: str = "Email"
     </div>
     """
 
-    if SMTP_EMAIL and SMTP_PASSWORD:
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = f"Khojo AI Concierge <{SMTP_EMAIL}>"
-            msg["To"] = to_email
-            msg.attach(MIMEText(html_body, "html"))
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Khojo AI Concierge <{SMTP_EMAIL}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(html_body, "html"))
 
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-                server.starttls()
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
-            print(f"[EMAIL SENT] Welcome email delivered to {to_email}")
-            return True
-        except Exception as e:
-            print(f"[SMTP FALLBACK] Could not send via SMTP ({e}). Logged email for {to_email}.")
-            return True
-    else:
-        print(f"[SIMULATED EMAIL DISPATCH] To: {to_email} | Subject: {subject} | Method: {auth_method}")
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+        print(f"[EMAIL SENT] Welcome email delivered to {to_email}")
         return True
+    except Exception as e:
+        print(f"[SMTP ERROR] Could not send welcome email to {to_email}: {e}")
+        return False
+
+def send_otp_email(to_email: str, user_name: str, otp_code: str, phone: str) -> bool:
+    """Emails the 6-digit OTP code directly to the user's inbox."""
+    if not to_email or "@" not in to_email or not (SMTP_EMAIL and SMTP_PASSWORD):
+        return False
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"🔐 {otp_code} is your Khojo AI verification code"
+        msg["From"] = f"Khojo AI Security <{SMTP_EMAIL}>"
+        msg["To"] = to_email
+        html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #121215; color: #FFFFFF; padding: 28px; border-radius: 18px; border: 1px solid #2E2E38;">
+          <h2 style="margin-top:0; color:#FFFFFF;">Khojo <span style="color:#FF2A2A;">AI</span> Verification</h2>
+          <p style="color:#C0C0C8; font-size:14px;">Hi {user_name or 'there'}, use the 6-digit OTP below to verify your login for mobile <strong>+91 {phone}</strong>:</p>
+          <div style="background:#1A1A22; border:1px solid #FF2A2A; border-radius:12px; padding:18px; text-align:center; font-size:32px; font-weight:bold; letter-spacing:8px; color:#FFFFFF; margin:20px 0;">
+            {otp_code}
+          </div>
+          <p style="color:#8E8E9E; font-size:12px;">This code expires in 5 minutes. Do not share it with anyone.</p>
+        </div>
+        """
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"[OTP EMAIL ERROR] {e}")
+        return False
 
 # 6. Pydantic Schemas
 class AuthSignupRequest(BaseModel):
@@ -207,9 +235,13 @@ class IssueReportRequest(BaseModel):
 @app.post("/api/auth/signup")
 def register_user(req: AuthSignupRequest, background_tasks: BackgroundTasks):
     email_clean = req.email.strip().lower()
-    name_clean = req.name.strip() or email_clean.split("@")[0].capitalize()
-    if len(req.password) < 4:
-        raise HTTPException(status_code=400, detail="Password must be at least 4 characters.")
+    name_clean = req.name.strip()
+    if not name_clean:
+        raise HTTPException(status_code=400, detail="Please enter your full name.")
+    if "@" not in email_clean:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
 
     pw_hash = hash_password(req.password)
     token = secrets.token_hex(24)
@@ -225,16 +257,20 @@ def register_user(req: AuthSignupRequest, background_tasks: BackgroundTasks):
     try:
         existing = supabase.table("users").select("*").eq("email", email_clean).execute()
         if existing.data and len(existing.data) > 0:
-            raise HTTPException(status_code=400, detail="Account already exists. Please Sign In.")
+            raise HTTPException(status_code=400, detail="An account with this email already exists. Please Sign In.")
         ins = supabase.table("users").insert(user_record).execute()
         saved_user = ins.data[0] if ins.data else user_record
     except HTTPException:
         raise
     except Exception:
+        if email_clean in FALLBACK_USERS_DB:
+            raise HTTPException(status_code=400, detail="An account with this email already exists. Please Sign In.")
         FALLBACK_USERS_DB[email_clean] = user_record
         saved_user = user_record
 
-    background_tasks.add_task(send_welcome_email, email_clean, name_clean, "Email Signup")
+    email_configured = bool(SMTP_EMAIL and SMTP_PASSWORD)
+    if email_configured:
+        background_tasks.add_task(send_welcome_email, email_clean, name_clean, "Email Registration")
 
     public_user = {
         "name": saved_user.get("name", name_clean),
@@ -243,15 +279,19 @@ def register_user(req: AuthSignupRequest, background_tasks: BackgroundTasks):
         "authMethod": "Email",
         "tier": "Verified Member",
         "joinedAt": time.strftime("%b %Y"),
-        "emailSent": True
+        "emailSent": email_configured
     }
     ACTIVE_SESSIONS[token] = public_user
     return {
         "status": "success",
         "token": token,
         "user": public_user,
-        "email_sent": True,
-        "message": f"Account created! A welcome confirmation email has been sent to {email_clean}."
+        "email_sent": email_configured,
+        "message": (
+            f"Account created! A welcome confirmation email has been sent to {email_clean}."
+            if email_configured
+            else f"Account created for {email_clean}!"
+        )
     }
 
 @app.post("/api/auth/login")
@@ -269,40 +309,38 @@ def login_user(req: AuthLoginRequest, background_tasks: BackgroundTasks):
         found_user = FALLBACK_USERS_DB.get(email_clean)
 
     if not found_user:
-        auto_name = email_clean.split("@")[0].capitalize()
-        found_user = {
-            "name": auto_name,
-            "email": email_clean,
-            "password_hash": pw_hash,
-            "tier": "Verified Member",
-            "ml_profile": {}
-        }
-        FALLBACK_USERS_DB[email_clean] = found_user
-        try:
-            supabase.table("users").insert(found_user).execute()
-        except Exception:
-            pass
-    elif found_user.get("password_hash") != pw_hash and req.password != "demo1234":
-        raise HTTPException(status_code=401, detail="Incorrect email or password.")
+        raise HTTPException(
+            status_code=404,
+            detail="No account found with this email address. Please click 'Create one' below to register."
+        )
+
+    if found_user.get("password_hash") != pw_hash:
+        raise HTTPException(status_code=401, detail="Incorrect password. Please try again.")
 
     user_name = found_user.get("name", email_clean.split("@")[0].capitalize())
-    background_tasks.add_task(send_welcome_email, email_clean, user_name, "Email Login")
+    email_configured = bool(SMTP_EMAIL and SMTP_PASSWORD)
+    if email_configured:
+        background_tasks.add_task(send_welcome_email, email_clean, user_name, "Email Login")
 
     public_user = {
         "name": user_name,
         "email": email_clean,
         "authMethod": "Email",
-        "tier": "Verified Member",
+        "tier": found_user.get("tier", "Verified Member"),
         "joinedAt": time.strftime("%b %Y"),
-        "emailSent": True
+        "emailSent": email_configured
     }
     ACTIVE_SESSIONS[token] = public_user
     return {
         "status": "success",
         "token": token,
         "user": public_user,
-        "email_sent": True,
-        "message": f"Login successful! Confirmation email dispatched to {email_clean}."
+        "email_sent": email_configured,
+        "message": (
+            f"Login successful! Confirmation email sent to {email_clean}."
+            if email_configured
+            else f"Welcome back, {user_name}!"
+        )
     }
 
 @app.post("/api/auth/google")
@@ -314,7 +352,7 @@ def google_oauth_login(req: GoogleAuthRequest, background_tasks: BackgroundTasks
     user_record = {
         "name": name_clean,
         "email": email_clean,
-        "password_hash": hash_password(req.google_id or "google_oauth"),
+        "password_hash": hash_password(req.google_id or f"google_oauth_{email_clean}"),
         "tier": "Google Verified",
         "ml_profile": req.ml_profile or {}
     }
@@ -326,7 +364,9 @@ def google_oauth_login(req: GoogleAuthRequest, background_tasks: BackgroundTasks
     except Exception:
         FALLBACK_USERS_DB[email_clean] = user_record
 
-    background_tasks.add_task(send_welcome_email, email_clean, name_clean, "Google OAuth")
+    email_configured = bool(SMTP_EMAIL and SMTP_PASSWORD)
+    if email_configured:
+        background_tasks.add_task(send_welcome_email, email_clean, name_clean, "Google OAuth 2.0")
 
     public_user = {
         "name": name_clean,
@@ -335,37 +375,71 @@ def google_oauth_login(req: GoogleAuthRequest, background_tasks: BackgroundTasks
         "authMethod": "Google",
         "tier": "Google Verified",
         "joinedAt": time.strftime("%b %Y"),
-        "emailSent": True
+        "emailSent": email_configured
     }
     ACTIVE_SESSIONS[token] = public_user
     return {
         "status": "success",
         "token": token,
         "user": public_user,
-        "email_sent": True,
-        "message": f"Authenticated with Google! Welcome email sent to {email_clean}."
+        "email_sent": email_configured,
+        "message": (
+            f"Signed in with Google! Welcome email sent to {email_clean}."
+            if email_configured
+            else f"Signed in with Google as {name_clean}!"
+        )
     }
 
 @app.post("/api/auth/send-otp")
 def send_phone_otp(req: SendOTPRequest):
     digits = re.sub(r"\D", "", req.phone)
     if len(digits) < 10:
-        raise HTTPException(status_code=400, detail="Please enter a valid 10-digit mobile number.")
+        raise HTTPException(status_code=400, detail="Please enter a valid 10-digit Indian mobile number.")
     clean_phone = digits[-10:]
 
     otp_code = str(random.randint(100000, 999999))
     OTP_STORE[clean_phone] = {
         "otp": otp_code,
         "expires_at": time.time() + 300,
-        "name": req.name or "",
-        "email": req.email or ""
+        "name": req.name.strip() if req.name else "",
+        "email": req.email.strip().lower() if req.email else ""
     }
+
+    sms_sent = False
+    if FAST2SMS_API_KEY:
+        try:
+            sms_url = (
+                f"https://www.fast2sms.com/dev/bulkV2?authorization={FAST2SMS_API_KEY}"
+                f"&route=otp&variables_values={otp_code}&flash=0&numbers={clean_phone}"
+            )
+            req_sms = urllib.request.Request(sms_url, headers={"cache-control": "no-cache"})
+            urllib.request.urlopen(req_sms, timeout=8)
+            sms_sent = True
+        except Exception as e:
+            print(f"[FAST2SMS ERROR] {e}")
+
+    email_sent = False
+    if req.email and "@" in req.email:
+        email_sent = send_otp_email(req.email.strip(), req.name or "", otp_code, clean_phone)
+
+    if not sms_sent and not email_sent:
+        raise HTTPException(
+            status_code=500,
+            detail="To send real OTPs in production, please add SMTP_EMAIL & SMTP_PASSWORD (or FAST2SMS_API_KEY) in your Render Environment Variables."
+        )
+
+    channels = []
+    if sms_sent:
+        channels.append(f"+91 {clean_phone}")
+    if email_sent:
+        channels.append(req.email.strip())
 
     return {
         "status": "sent",
         "phone": f"+91 {clean_phone}",
-        "demo_otp": otp_code,
-        "message": f"6-digit OTP sent to +91 {clean_phone}"
+        "sms_sent": sms_sent,
+        "email_sent": email_sent,
+        "message": f"6-digit verification code sent to {' and '.join(channels)}!"
     }
 
 @app.post("/api/auth/verify-otp")
@@ -374,35 +448,53 @@ def verify_phone_otp(req: VerifyOTPRequest, background_tasks: BackgroundTasks):
     clean_phone = digits[-10:]
     record = OTP_STORE.get(clean_phone)
 
-    if req.otp.strip() != "123456":
-        if not record or time.time() > record["expires_at"]:
-            raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new OTP.")
-        if record["otp"] != req.otp.strip():
-            raise HTTPException(status_code=400, detail="Invalid 6-digit OTP code.")
+    if not record or time.time() > record["expires_at"]:
+        raise HTTPException(status_code=400, detail="OTP expired or not found. Please request a new OTP.")
+    if record["otp"] != req.otp.strip():
+        raise HTTPException(status_code=400, detail="Incorrect 6-digit OTP code. Please check your inbox/SMS.")
 
-    user_email = (req.email or (record and record.get("email")) or f"{clean_phone}@khojo.ai").strip().lower()
-    user_name = (req.name or (record and record.get("name")) or f"Member {clean_phone[-4:]}").strip()
+    user_email = (req.email or record.get("email") or "").strip().lower()
+    user_name = (req.name or record.get("name") or "Verified User").strip()
     token = secrets.token_hex(24)
 
     OTP_STORE.pop(clean_phone, None)
-    background_tasks.add_task(send_welcome_email, user_email, user_name, f"Mobile OTP (+91 {clean_phone})")
+
+    # Save or update user in database
+    if user_email:
+        user_record = {
+            "name": user_name,
+            "email": user_email,
+            "password_hash": hash_password(f"otp_{clean_phone}"),
+            "tier": "Mobile Verified",
+            "ml_profile": req.ml_profile or {}
+        }
+        try:
+            existing = supabase.table("users").select("*").eq("email", user_email).execute()
+            if not existing.data:
+                supabase.table("users").insert(user_record).execute()
+        except Exception:
+            FALLBACK_USERS_DB[user_email] = user_record
+
+    email_dispatched = bool(SMTP_EMAIL and SMTP_PASSWORD and user_email)
+    if email_dispatched:
+        background_tasks.add_task(send_welcome_email, user_email, user_name, f"Mobile OTP (+91 {clean_phone})")
 
     public_user = {
         "name": user_name,
         "email": user_email,
         "phone": f"+91 {clean_phone}",
-        "authMethod": "Phone OTP",
+        "authMethod": "Mobile OTP",
         "tier": "Mobile Verified",
         "joinedAt": time.strftime("%b %Y"),
-        "emailSent": True
+        "emailSent": email_dispatched
     }
     ACTIVE_SESSIONS[token] = public_user
     return {
         "status": "success",
         "token": token,
         "user": public_user,
-        "email_sent": True,
-        "message": f"Mobile number verified! Welcome email sent to {user_email}."
+        "email_sent": email_dispatched,
+        "message": f"Mobile number +91 {clean_phone} verified! Welcome email sent to {user_email}."
     }
 
 @app.post("/api/auth/logout")
@@ -700,7 +792,12 @@ Live Snippets:
 
 @app.get("/")
 def health_check():
-    return {"status": "online", "service": "Khojo AI Backend v6.0 (Google Auth + Phone OTP + Welcome Email)"}
+    return {
+        "status": "online",
+        "service": "Khojo AI Production Backend v6.1",
+        "smtp_configured": bool(SMTP_EMAIL and SMTP_PASSWORD),
+        "sms_configured": bool(FAST2SMS_API_KEY)
+    }
 
 @app.get("/api/products")
 def get_catalog_products(
