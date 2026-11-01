@@ -21,6 +21,7 @@ import PriceAnalyticsModal from './components/PriceAnalyticsModal';
 import FixReporterModal from './components/FixReporterModal';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import Interactive3DBackground from './components/Interactive3DBackground';
+import LoadingScreen3D from './components/LoadingScreen3D';
 import { LoginModal, ProfileDashboard } from './components/AuthAndProfile';
 import {
   PrivacyPolicyPage,
@@ -79,21 +80,19 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Check 404 route on mount (LoadingScreen3D handles setting booting to false at 100%)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setBooting(false);
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }, 850);
     const path = window.location.pathname;
     if (path && path !== '/' && !['/index.html'].includes(path)) {
       setActivePage('404');
     }
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [activePage]);
+    if (!booting) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [activePage, booting]);
 
   useEffect(() => {
     localStorage.setItem('khojo_wishlist', JSON.stringify(wishlist));
@@ -103,6 +102,7 @@ export default function App() {
     localStorage.setItem('khojo_price_alerts', JSON.stringify(priceAlerts));
   }, [priceAlerts]);
 
+  // Silent background tracking for backend personalization
   const handleRecordInteraction = (payload) => {
     const updated = recordUserInteraction(payload);
     setMlProfile({ ...updated });
@@ -204,6 +204,7 @@ export default function App() {
     fetchProducts();
   }, [selectedCategory]);
 
+  // Invisible Background Ranking
   const displayedProducts = useMemo(() => {
     const baseList = activePage === 'wishlist' ? wishlist : products;
 
@@ -260,27 +261,15 @@ export default function App() {
     return sorted;
   }, [activePage, wishlist, products, searchQuery, sortBy, mlProfile]);
 
+  // Full 3D 1-to-100% Loading Screen ("KHOJO AI - where shopping made eazyyy")
   if (booting) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#121215] flex flex-col items-center justify-center p-6 text-center">
-        <div className="relative w-20 h-20 rounded-3xl p-[2px] bg-gradient-to-tr from-[#FF2A2A] via-[#C0C0C8] to-[#FF2A2A] shadow-2xl shadow-[#FF2A2A]/30 animate-bounce">
-          <div className="w-full h-full rounded-[22px] overflow-hidden bg-[#121215]">
-            <img src="/favicon.ico" alt="Khojo AI" className="w-full h-full object-cover" />
-          </div>
-        </div>
-        <h1 className="font-harmond text-4xl sm:text-5xl font-bold text-white mt-5 tracking-wide">
-          Khojo{' '}
-          <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
-            AI
-          </span>
-        </h1>
-        <p className="text-[11px] uppercase tracking-[0.28em] text-[#C0C0C8] mt-2">
-          Initializing Price Intelligence Vault...
-        </p>
-        <div className="w-48 h-1 rounded-full bg-zinc-800 overflow-hidden mt-5">
-          <div className="h-full w-full bg-gradient-to-r from-[#C0C0C8] via-[#FF2A2A] to-[#C0C0C8] animate-pulse" />
-        </div>
-      </div>
+      <LoadingScreen3D
+        onComplete={() => {
+          setBooting(false);
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }}
+      />
     );
   }
 
@@ -516,7 +505,7 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Central Conversational Hub (No Auto Window Scroll!) */}
+                {/* Central Conversational Hub */}
                 <ChatWidget
                   embedded={true}
                   user={user}
