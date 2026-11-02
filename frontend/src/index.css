@@ -54,6 +54,42 @@
   animation: fadeIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* 3D Floating Hero Vibe Cards */
+@keyframes float3D {
+  0%, 100% {
+    transform: perspective(900px) rotateY(14deg) rotateX(6deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(10deg) rotateX(-4deg) translateY(-10px);
+  }
+}
+
+@keyframes float3DReverse {
+  0%, 100% {
+    transform: perspective(900px) rotateY(-14deg) rotateX(6deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(-10deg) rotateX(-4deg) translateY(-10px);
+  }
+}
+
+.float-3d-left {
+  animation: float3D 5.5s ease-in-out infinite;
+}
+
+.float-3d-right {
+  animation: float3DReverse 6s ease-in-out infinite;
+}
+
+/* Utility to hide scrollbars on horizontal pill bars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Custom Charcoal & Signal Red Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

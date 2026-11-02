@@ -13,7 +13,10 @@ import {
   Mic,
   ShieldCheck,
   Database,
-  Zap
+  Zap,
+  Flame,
+  TrendingDown,
+  ShoppingBag
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import ProductCard from './ProductCard';
@@ -21,11 +24,42 @@ import { scoreProductForUser } from '../utils/mlEngine';
 
 const QUICK_PROMPTS = [
   { label: '🧴 Face serum', query: 'Find me a good face serum' },
-  { label: '📦 Return policy?', query: 'What is your return policy?' },
-  { label: '💵 COD available?', query: 'Do you support COD?' },
   { label: '👟 Sneakers < ₹5000', query: 'Sneakers under ₹5000' },
   { label: '👕 U.S. Polo shirts', query: 'Show me U.S. Polo shirts' },
-  { label: '🎧 Headphones', query: 'Noise cancelling headphones' }
+  { label: '🎧 Headphones', query: 'Noise cancelling headphones' },
+  { label: '📦 Return policy?', query: 'What is your return policy?' },
+  { label: '💵 COD available?', query: 'Do you support COD?' }
+];
+
+const SHOPPING_VIBE_CARDS = [
+  {
+    badge: 'TRENDING VIBE',
+    title: '🔥 Streetwear & Sneakers',
+    subtitle: 'Compare Puma, Nike & Campus kicks under ₹5,000',
+    query: 'Sneakers under ₹5000',
+    accent: 'from-[#FF2A2A]/25 to-[#181820]'
+  },
+  {
+    badge: 'GLOW ROUTINE',
+    title: '✨ Skincare & Serums',
+    subtitle: 'Top-rated Nykaa & Amazon face serums & cleansers',
+    query: 'Find me a good face serum',
+    accent: 'from-rose-500/20 to-[#181820]'
+  },
+  {
+    badge: 'TECH STEALS',
+    title: '🎧 Pro Gaming & Audio',
+    subtitle: 'ANC headphones, gaming mice & accessories',
+    query: 'Noise cancelling headphones',
+    accent: 'from-sky-500/20 to-[#181820]'
+  },
+  {
+    badge: 'WARDROBE UPGRADE',
+    title: '👕 Mens & Womens Fit',
+    subtitle: 'U.S. Polo shirts, oversized hoodies & cargos',
+    query: 'Show me U.S. Polo shirts',
+    accent: 'from-emerald-500/20 to-[#181820]'
+  }
 ];
 
 const INSTANT_POLICIES = {
@@ -39,7 +73,6 @@ const INSTANT_POLICIES = {
     '100% Verified Original Brands. All electronics and fashion items come with standard manufacturer warranty across India.'
 };
 
-// Cleanly renders **bold** and *italic* text without raw asterisks
 function formatMessageText(text = '') {
   const parts = String(text).split(/(\*\*.*?\*\*|\*.*?\*)/g);
   return parts.map((part, index) => {
@@ -66,9 +99,13 @@ export default function ChatWidget({
   user = null,
   mlProfile = null,
   catalogProducts = [],
+  externalQuery = null,
+  onClearExternalQuery,
   onRecordInteraction,
   wishlist = [],
+  versusProducts = [],
   toggleWishlist,
+  onToggleVersus,
   onOpenAnalytics,
   onOpenReporter
 }) {
@@ -84,12 +121,11 @@ export default function ChatWidget({
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Namaste${userName}! ✨ Welcome to the **Khojo AI Concierge Hub**.\n\nAsk me about store policies (*"What is your return policy?"*, *"Do you support COD?"*), search live inventory across Amazon India, Flipkart, Myntra & Nykaa, or get tailored product recommendations.`,
+      content: `Namaste${userName}! ✨ Welcome to the **Khojo AI Concierge Hub**.\n\nTap any **Shopping Vibe** below, ask a store policy question (*"Do you support COD?"*), or tell me what product you want to compare across Amazon India, Flipkart, Myntra & Nykaa!`,
       products: []
     }
   ]);
 
-  // Use internal container scrollTop instead of window scrollIntoView so the page NEVER jumps down on load!
   const messagesContainerRef = useRef(null);
   const isInitialMount = useRef(true);
 
@@ -106,6 +142,14 @@ export default function ChatWidget({
       });
     }
   }, [messages, loading]);
+
+  // Listen for clicks from the 3D floating hero cards
+  useEffect(() => {
+    if (externalQuery && externalQuery.trim()) {
+      sendMessage(externalQuery);
+      if (onClearExternalQuery) onClearExternalQuery();
+    }
+  }, [externalQuery]);
 
   const startVoiceInput = () => {
     const SpeechRecognition =
@@ -131,13 +175,12 @@ export default function ChatWidget({
     setMessages([
       {
         role: 'assistant',
-        content: `Conversation reset${userName}! Ask a store policy question or tell me what product you want me to scan across our inventory.`,
+        content: `Conversation reset${userName}! Pick a Shopping Vibe below or type any product you want me to scan across India.`,
         products: []
       }
     ]);
   };
 
-  // Instant Local Fallback Search if Backend takes > 4.5 seconds
   const searchLocalCatalogFallback = (queryText) => {
     const qLower = queryText.toLowerCase().replace(/\./g, '');
     const priceMatch = qLower.match(/(?:under|below|max|₹|rs\.?\s*)\s*(\d{3,6})/);
@@ -189,7 +232,7 @@ export default function ChatWidget({
     if (!query || loading) return;
 
     const now = Date.now();
-    if (now - lastSentTime < 800) return;
+    if (now - lastSentTime < 600) return;
     setLastSentTime(now);
 
     if (onRecordInteraction) {
@@ -202,7 +245,6 @@ export default function ChatWidget({
 
     const qClean = query.toLowerCase().trim();
 
-    // 1. ZERO-LATENCY AUTO RESPONSE FOR REPETITIVE POLICY / COD / SHIPPING QUESTIONS
     if (
       /\b(return|refund|exchange|policy|cod|cash on delivery|shipping|delivery|authentic|warranty)\b/.test(
         qClean
@@ -226,20 +268,18 @@ export default function ChatWidget({
       return;
     }
 
-    // 2. ZERO-LATENCY AUTO RESPONSE FOR GREETINGS
     if (/^(hi|hello|hey|namaste|hola|yo|good morning|good evening)$/.test(qClean)) {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `Hello${userName}! ✨ Tell me what you're shopping for today—try *"Find me a good face serum"*, *"Sneakers under ₹5000"*, or *"U.S. Polo shirts"*.`,
+          content: `Hello${userName}! ✨ Tap one of the **Shopping Vibe** cards or tell me what you're looking for—like *"Sneakers under ₹5000"* or *"Find me a good face serum"*.`,
           products: []
         }
       ]);
       return;
     }
 
-    // 3. INVENTORY SEARCH WITH 5-SECOND AUTO-TIMEOUT FALLBACK
     setLoading(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5500);
@@ -282,7 +322,6 @@ export default function ChatWidget({
       ]);
     } catch {
       clearTimeout(timeoutId);
-      // Instant auto-fallback using loaded catalog so mobile users never wait on cold starts
       const localMatches = searchLocalCatalogFallback(query);
       if (localMatches.length > 0) {
         const top = localMatches[0];
@@ -290,7 +329,7 @@ export default function ChatWidget({
           ...prev,
           {
             role: 'assistant',
-            content: `I found **${localMatches.length} matching options** for you! The top recommendation is **${top.name}** by ${top.brand} on **${top.platform}** for **₹${top.price_inr}**. Tap **Graph** to inspect the 6-month price trajectory or **Buy Now**!`,
+            content: `I found **${localMatches.length} top deals** for you! Leading the pack is **${top.name}** by ${top.brand} on **${top.platform}** for **₹${top.price_inr}**. Tap **Graph** for the 6-month price trajectory or **+ Versus** to compare!`,
             products: localMatches
           }
         ]);
@@ -299,7 +338,7 @@ export default function ChatWidget({
           ...prev,
           {
             role: 'assistant',
-            content: `I scanned our catalog for **"${query}"**. Try browsing our Footwear, Beauty, Electronics, or Apparel categories below, or tap one of the quick search pills!`,
+            content: `Here are our top trending steals while I scan live stores for **"${query}"**:`,
             products: (catalogProducts || []).slice(0, 4)
           }
         ]);
@@ -309,128 +348,59 @@ export default function ChatWidget({
     }
   };
 
-  if (!embedded && windowState === 'closed') {
-    return (
-      <div className="fixed bottom-4 right-4 z-40">
-        <button
-          onClick={() => setWindowState('normal')}
-          className="bg-gradient-to-r from-[#FF2A2A] to-[#B91C1C] text-white px-4 sm:px-5 py-3 rounded-full shadow-2xl shadow-[#FF2A2A]/40 flex items-center gap-2 font-bold text-xs sm:text-sm transition-transform hover:scale-105 cursor-pointer border border-[#C0C0C8]/40"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Khojo AI Concierge</span>
-        </button>
-      </div>
-    );
-  }
-
-  if (!embedded && windowState === 'minimized') {
-    return (
-      <div className="fixed bottom-4 right-4 z-40">
-        <div className="bg-[#141418]/95 backdrop-blur-xl border border-[#C0C0C8]/40 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3">
-          <div
-            onClick={() => setWindowState('normal')}
-            className="flex items-center gap-2 cursor-pointer"
-          >
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF2A2A] animate-ping" />
-            <span className="font-harmond text-lg font-bold text-white">
-              Khojo AI Concierge
-            </span>
-          </div>
-          <button
-            onClick={() => setWindowState('normal')}
-            className="p-1.5 hover:bg-white/10 rounded-lg text-[#C0C0C8] cursor-pointer"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setWindowState('closed')}
-            className="p-1.5 hover:bg-white/10 rounded-lg text-[#C0C0C8] cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const isMax = !embedded && windowState === 'maximized';
-
-  // Mobile-friendly adaptive height so the hero section + chat fit on one screen without scrolling
   const containerClasses = embedded
-    ? 'w-full max-w-4xl mx-auto rounded-2xl sm:rounded-3xl bg-[#141419]/95 border border-[#C0C0C8]/25 shadow-2xl shadow-black/80 overflow-hidden flex flex-col h-[430px] sm:h-[500px]'
-    : `fixed z-40 transition-all duration-300 ${
-        isMax
-          ? 'inset-2 sm:inset-6'
-          : 'bottom-2 right-2 left-2 sm:left-auto sm:bottom-5 sm:right-5 sm:w-[430px] h-[75vh] sm:h-[560px]'
-      }`;
+    ? 'w-full rounded-2xl sm:rounded-3xl bg-[#131318]/90 backdrop-blur-2xl border border-[#C0C0C8]/30 shadow-[0_25px_70px_rgba(255,42,42,0.16)] overflow-hidden flex flex-col h-[470px] sm:h-[530px] card-3d-shell'
+    : 'fixed bottom-3 right-3 left-3 sm:left-auto sm:bottom-5 sm:right-5 sm:w-[430px] h-[75vh] sm:h-[560px] z-40';
 
   return (
     <div className={containerClasses}>
-      <div className="w-full h-full bg-[#121216]/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-[#C0C0C8]/25 flex flex-col overflow-hidden text-[#E2E8F0]">
+      <div className="w-full h-full flex flex-col overflow-hidden text-[#E2E8F0]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#16161C] via-[#241316] to-[#16161C] border-b border-[#C0C0C8]/20 px-3.5 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden border border-[#FF2A2A]/60 shrink-0 shadow-md shadow-[#FF2A2A]/20">
+        <div className="bg-gradient-to-r from-[#16161C] via-[#281216] to-[#16161C] border-b border-[#C0C0C8]/20 px-4 sm:px-5 py-3 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-[#FF2A2A] shrink-0 shadow-md shadow-[#FF2A2A]/30">
               <img src="/favicon.ico" alt="Khojo AI" className="w-full h-full object-cover" />
+              <span className="absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             </div>
             <div>
-              <h4 className="font-harmond text-lg sm:text-2xl font-bold tracking-wide text-white leading-none">
-                Khojo AI Concierge
-              </h4>
-              <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-[#C0C0C8] mt-1">
+              <div className="flex items-center gap-2">
+                <h4 className="font-harmond text-xl sm:text-2xl font-bold tracking-wide text-white leading-none">
+                  Khojo AI Shopping Concierge
+                </h4>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-[#FF2A2A]/20 text-[#FF2A2A] border border-[#FF2A2A]/40">
+                  <Flame className="w-2.5 h-2.5" /> Live Vibe Engine
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 text-[10px] text-[#C0C0C8] mt-1">
                 <span className="flex items-center gap-1 text-emerald-400 font-semibold">
                   <Zap className="w-3 h-3 fill-emerald-400" />
-                  Auto-Response
+                  Instant Reply
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <Database className="w-3 h-3 text-[#FF2A2A]" /> Live Inventory
+                  <Database className="w-3 h-3 text-[#FF2A2A]" /> 4-Store Scanner
                 </span>
-                <span className="hidden xs:inline">•</span>
-                <span className="hidden xs:flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#C0C0C8]" /> Smart Picks
+                <span className="hidden sm:inline">•</span>
+                <span className="hidden sm:flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-[#C0C0C8]" /> Smart Suggestions
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={clearChat}
-              title="Reset Conversation"
-              className="p-1.5 sm:p-2 hover:bg-white/10 rounded-xl text-[#C0C0C8] hover:text-white cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            {!embedded && (
-              <>
-                <button
-                  onClick={() => setWindowState('minimized')}
-                  className="p-1.5 sm:p-2 hover:bg-white/10 rounded-xl text-[#C0C0C8] cursor-pointer"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setWindowState(isMax ? 'normal' : 'maximized')}
-                  className="p-1.5 sm:p-2 hover:bg-white/10 rounded-xl text-[#C0C0C8] cursor-pointer"
-                >
-                  {isMax ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setWindowState('closed')}
-                  className="p-1.5 sm:p-2 hover:bg-white/10 rounded-xl text-[#C0C0C8] hover:text-[#FF2A2A] cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
+          <button
+            onClick={clearChat}
+            title="Reset Conversation"
+            className="p-2 hover:bg-white/10 rounded-xl text-[#C0C0C8] hover:text-white cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Scrollable Message Stream (Internal Scroll Only!) */}
+        {/* Scrollable Message Stream */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5 bg-[#0D0D11]"
+          className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 bg-[#0D0D11]/90"
         >
           {messages.map((msg, idx) => (
             <div
@@ -440,30 +410,58 @@ export default function ChatWidget({
               }`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-[#FF2A2A] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-[#FF2A2A] flex items-center justify-center shrink-0 mt-0.5 shadow-md shadow-[#FF2A2A]/10">
                   <Bot className="w-4 h-4" />
                 </div>
               )}
 
-              <div className="max-w-[88%] sm:max-w-[85%] space-y-2.5">
+              <div className="max-w-[90%] sm:max-w-[86%] space-y-3">
                 <div
-                  className={`px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
+                  className={`px-4 py-3 rounded-2xl text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
                     msg.role === 'user'
-                      ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white font-semibold rounded-br-none shadow-md shadow-[#FF2A2A]/20'
-                      : 'bg-[#18181F] text-[#E2E8F0] border border-[#C0C0C8]/20 rounded-bl-none'
+                      ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white font-semibold rounded-br-none shadow-lg shadow-[#FF2A2A]/25'
+                      : 'bg-[#181820] text-[#E2E8F0] border border-[#C0C0C8]/20 rounded-bl-none'
                   }`}
                 >
                   {formatMessageText(msg.content)}
                 </div>
 
+                {/* Interactive "Shop by Vibe" Bento Cards on Initial Greeting */}
+                {idx === 0 && messages.length === 1 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 animate-fadeIn">
+                    {SHOPPING_VIBE_CARDS.map((card) => (
+                      <div
+                        key={card.title}
+                        onClick={() => sendMessage(card.query)}
+                        className={`p-3.5 rounded-2xl bg-gradient-to-br ${card.accent} border border-[#C0C0C8]/20 hover:border-[#FF2A2A] transition-all cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#FF2A2A]/15`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#FF2A2A]">
+                            {card.badge}
+                          </span>
+                          <Sparkles className="w-3.5 h-3.5 text-[#C0C0C8] group-hover:text-[#FF2A2A] group-hover:rotate-12 transition-transform" />
+                        </div>
+                        <h5 className="font-harmond text-lg font-bold text-white group-hover:text-[#FF2A2A] transition-colors">
+                          {card.title}
+                        </h5>
+                        <p className="text-[11px] text-[#C0C0C8] line-clamp-1 mt-0.5">
+                          {card.subtitle}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {msg.products && msg.products.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-[#C0C0C8] px-1">
-                      <span className="flex items-center gap-1 font-semibold text-white">
-                        <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
-                        Recommended Matches ({msg.products.length})
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] text-[#C0C0C8] px-1">
+                      <span className="flex items-center gap-1.5 font-semibold text-white">
+                        <Sparkles className="w-3.5 h-3.5 text-[#FF2A2A]" />
+                        Curated AI Matches ({msg.products.length})
                       </span>
-                      <span className="hidden sm:inline">Tap Graph for 6-Month History</span>
+                      <span className="hidden sm:inline">
+                        Tap + Versus to compare or Graph for 6-month trend
+                      </span>
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2 pt-0.5 no-scrollbar">
                       {msg.products.map((prod) => (
@@ -472,9 +470,11 @@ export default function ChatWidget({
                           product={prod}
                           compact={true}
                           isWishlisted={wishlist.some((w) => w.id === prod.id)}
+                          isInVersus={versusProducts.some((v) => v.id === prod.id)}
                           onToggleWishlist={() =>
                             toggleWishlist && toggleWishlist(prod)
                           }
+                          onToggleVersus={onToggleVersus}
                           onOpenAnalytics={onOpenAnalytics}
                           onOpenReporter={onOpenReporter}
                           onProductInteract={(p) =>
@@ -489,7 +489,7 @@ export default function ChatWidget({
               </div>
 
               {msg.role === 'user' && (
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#1C1C24] border border-[#C0C0C8]/30 text-[#C0C0C8] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-xl bg-[#1C1C24] border border-[#C0C0C8]/30 text-[#C0C0C8] flex items-center justify-center shrink-0 mt-0.5">
                   <User className="w-4 h-4" />
                 </div>
               )}
@@ -499,18 +499,18 @@ export default function ChatWidget({
           {loading && (
             <div className="flex items-center gap-2 text-xs text-[#FF2A2A] pl-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Scanning live inventory...</span>
+              <span>Khojo AI is curating the best store deals for your vibe...</span>
             </div>
           )}
         </div>
 
-        {/* Mobile-Friendly Quick Prompt Pills */}
-        <div className="px-3 py-2 bg-[#14141A] border-t border-[#C0C0C8]/15 flex gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar shrink-0">
+        {/* Quick Prompt Pills */}
+        <div className="px-3.5 py-2 bg-[#14141A] border-t border-[#C0C0C8]/15 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
           {QUICK_PROMPTS.map((item) => (
             <button
               key={item.label}
               onClick={() => sendMessage(item.query)}
-              className="text-[11px] sm:text-xs bg-[#1C1C24] hover:bg-[#FF2A2A]/20 border border-[#C0C0C8]/20 hover:border-[#FF2A2A] text-[#E2E8F0] px-3 py-1 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer"
+              className="text-[11px] sm:text-xs bg-[#1C1C24] hover:bg-[#FF2A2A] border border-[#C0C0C8]/25 hover:border-[#FF2A2A] text-[#E2E8F0] hover:text-white px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer font-medium"
             >
               {item.label}
             </button>
@@ -523,7 +523,7 @@ export default function ChatWidget({
             e.preventDefault();
             sendMessage();
           }}
-          className="p-2.5 sm:p-3 bg-[#121216] border-t border-[#C0C0C8]/20 flex items-center gap-1.5 sm:gap-2 shrink-0"
+          className="p-3 bg-[#121216] border-t border-[#C0C0C8]/20 flex items-center gap-2 shrink-0"
         >
           <input
             type="text"
@@ -540,16 +540,16 @@ export default function ChatWidget({
             onChange={(e) => setInput(e.target.value)}
             placeholder={
               isListening
-                ? 'Listening... Speak now!'
-                : 'Ask policy ("COD?") or search ("face serum")...'
+                ? 'Listening... Speak your shopping vibe!'
+                : 'Tell Khojo AI your vibe ("Sneakers under ₹5000", "Face serum", "COD?")...'
             }
-            className="flex-1 text-xs sm:text-sm bg-[#1A1A22] border border-[#C0C0C8]/25 px-3 sm:px-4 py-2.5 rounded-xl focus:outline-none focus:border-[#FF2A2A] text-white placeholder-zinc-400 min-w-0"
+            className="flex-1 text-xs sm:text-sm bg-[#1A1A22] border border-[#C0C0C8]/30 px-4 py-3 rounded-xl focus:outline-none focus:border-[#FF2A2A] text-white placeholder-zinc-400 min-w-0"
           />
           <button
             type="button"
             onClick={startVoiceInput}
             title="Voice Input"
-            className={`p-2.5 rounded-xl border transition-all cursor-pointer shrink-0 ${
+            className={`p-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
               isListening
                 ? 'bg-[#FF2A2A] text-white border-[#FF2A2A] animate-pulse'
                 : 'bg-[#1A1A22] border-[#C0C0C8]/25 text-[#C0C0C8] hover:text-white'
@@ -560,10 +560,10 @@ export default function ChatWidget({
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] hover:brightness-110 disabled:opacity-40 text-white px-3.5 sm:px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-[#FF2A2A]/25 shrink-0"
+            className="bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] hover:brightness-110 disabled:opacity-40 text-white px-4 sm:px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-[#FF2A2A]/30 shrink-0"
           >
             <span className="hidden sm:inline">Ask AI</span>
-            <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Send className="w-4 h-4" />
           </button>
         </form>
       </div>

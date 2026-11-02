@@ -60,6 +60,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [fetchingLive, setFetchingLive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [heroAiQuery, setHeroAiQuery] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
   const [isListening, setIsListening] = useState(false);
 
@@ -156,7 +157,6 @@ export default function App() {
       return;
     }
 
-    // If 2 items are already selected and user clicks a 3rd item of the same category, replace Slot B
     const nextPair = [firstItem, product];
     setVersusProducts(nextPair);
     setIsVersusOpen(true);
@@ -553,9 +553,13 @@ export default function App() {
             user={user}
             mlProfile={mlProfile}
             catalogProducts={products}
+            externalQuery={heroAiQuery}
+            onClearExternalQuery={() => setHeroAiQuery('')}
             onRecordInteraction={handleRecordInteraction}
             wishlist={wishlist}
+            versusProducts={versusProducts}
             toggleWishlist={toggleWishlist}
+            onToggleVersus={handleToggleVersusProduct}
             onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
             onOpenReporter={(p) => openFixReporter(p)}
           />
@@ -563,40 +567,144 @@ export default function App() {
       ) : (
         <>
           {activePage === 'home' && (
-            <section className="relative overflow-hidden border-b border-[#C0C0C8]/20 py-5 sm:py-8 px-3 sm:px-4 bg-gradient-to-b from-[#17171D] via-[#121216] to-[#0E0E12]">
+            <section className="relative overflow-hidden border-b border-[#C0C0C8]/20 py-6 sm:py-10 px-3 sm:px-6 bg-gradient-to-b from-[#17171F] via-[#111116] to-[#0B0B0F]">
               <Interactive3DBackground />
 
-              <div className="relative z-10 max-w-4xl mx-auto space-y-4 sm:space-y-5">
-                <div className="text-center space-y-2">
-                  <span className="inline-flex items-center gap-1.5 bg-[#1C1C24]/90 border border-[#C0C0C8]/30 text-[#E2E8F0] text-[9px] sm:text-xs font-semibold px-3 py-1 rounded-full tracking-widest uppercase">
-                    <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
-                    Conversational Shopping • 6-Month Price Graph • Custom Versus Battle
-                  </span>
+              <div className="relative z-10 max-w-7xl mx-auto space-y-5">
+                {/* Top Heading & Interactive Vibe Switcher Pills */}
+                <div className="text-center space-y-3 max-w-3xl mx-auto">
+                  <div className="inline-flex items-center gap-2 bg-[#1A1A24]/90 border border-[#FF2A2A]/40 text-[#E2E8F0] text-[10px] sm:text-xs font-bold px-4 py-1.5 rounded-full tracking-widest uppercase shadow-lg shadow-[#FF2A2A]/15">
+                    <span className="w-2 h-2 rounded-full bg-[#FF2A2A] animate-ping" />
+                    <span>3D Interactive AI Shopping Concierge • Live Price Radar</span>
+                  </div>
 
-                  <h2 className="font-harmond text-3xl sm:text-5xl font-bold tracking-tight leading-none text-white">
+                  <h2 className="font-harmond text-4xl sm:text-6xl font-bold tracking-tight leading-none text-white">
                     Ask Khojo AI.{' '}
                     <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
                       Shop Smarter.
                     </span>
                   </h2>
 
-                  <p className="text-[#C0C0C8] text-xs sm:text-sm max-w-xl mx-auto">
-                    Instant answers for store policies, live inventory search across Amazon, Flipkart, Myntra & Nykaa, and tailored deal discovery.
-                  </p>
+                  {/* 1-Click Interactive Shopping Vibe Starters */}
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    {[
+                      { label: '🔥 Sneaker Drops < ₹5k', q: 'Sneakers under ₹5000' },
+                      { label: '✨ Glass Skin Serums', q: 'Find me a good face serum' },
+                      { label: '🎧 ANC Audio & Gaming', q: 'Noise cancelling headphones' },
+                      { label: '👕 Streetwear & Polos', q: 'Show me U.S. Polo shirts' }
+                    ].map((vibe) => (
+                      <button
+                        key={vibe.label}
+                        onClick={() => setHeroAiQuery(vibe.q)}
+                        className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#181822]/90 hover:bg-[#FF2A2A] text-[#E2E8F0] hover:text-white border border-[#C0C0C8]/25 hover:border-[#FF2A2A] transition-all cursor-pointer shadow-md hover:scale-105"
+                      >
+                        {vibe.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Central Conversational Hub */}
-                <ChatWidget
-                  embedded={true}
-                  user={user}
-                  mlProfile={mlProfile}
-                  catalogProducts={products}
-                  onRecordInteraction={handleRecordInteraction}
-                  wishlist={wishlist}
-                  toggleWishlist={toggleWishlist}
-                  onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
-                  onOpenReporter={(p) => openFixReporter(p)}
-                />
+                {/* 3-Column 3D Interactive Arena: Left Floating Vibe Orbs + Center AI Hub + Right Live Steals */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+                  {/* Left 3D Floating Shopping Vibe Cards (Desktop) */}
+                  <div className="hidden lg:flex lg:col-span-3 flex-col gap-4">
+                    <div
+                      onClick={() => setHeroAiQuery('Sneakers under ₹5000')}
+                      className="float-3d-left p-4 rounded-2xl bg-gradient-to-br from-[#1E151A]/95 to-[#121217]/95 border border-[#FF2A2A]/40 hover:border-[#FF2A2A] shadow-2xl cursor-pointer group transition-all"
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#FF2A2A] mb-1.5">
+                        <span>⚡ Live AI Vibe</span>
+                        <span>Tap to Ask →</span>
+                      </div>
+                      <h4 className="font-harmond text-2xl font-bold text-white group-hover:text-[#FF2A2A] transition-colors">
+                        Sneakerhead Radar
+                      </h4>
+                      <p className="text-xs text-[#C0C0C8] mt-1">
+                        "Find me top-rated running & casual sneakers under ₹5,000"
+                      </p>
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-emerald-400 font-semibold">
+                        <span>★ 4.7 Avg Rating</span>
+                        <span>•</span>
+                        <span>Up to 45% Off</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setHeroAiQuery('Find me a good face serum')}
+                      className="float-3d-left p-4 rounded-2xl bg-gradient-to-br from-[#181822]/95 to-[#121217]/95 border border-[#C0C0C8]/30 hover:border-[#FF2A2A] shadow-2xl cursor-pointer group transition-all"
+                      style={{ animationDelay: '1.2s' }}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-rose-400 mb-1.5">
+                        <span>✨ Beauty Concierge</span>
+                        <span>Tap to Ask →</span>
+                      </div>
+                      <h4 className="font-harmond text-2xl font-bold text-white group-hover:text-rose-400 transition-colors">
+                        Skincare & Glow Vault
+                      </h4>
+                      <p className="text-xs text-[#C0C0C8] mt-1">
+                        "Compare Nykaa & Amazon prices on niacinamide & vitamin C serums"
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Center: Main Conversational AI Hub */}
+                  <div className="lg:col-span-6">
+                    <ChatWidget
+                      embedded={true}
+                      user={user}
+                      mlProfile={mlProfile}
+                      catalogProducts={products}
+                      externalQuery={heroAiQuery}
+                      onClearExternalQuery={() => setHeroAiQuery('')}
+                      onRecordInteraction={handleRecordInteraction}
+                      wishlist={wishlist}
+                      versusProducts={versusProducts}
+                      toggleWishlist={toggleWishlist}
+                      onToggleVersus={handleToggleVersusProduct}
+                      onOpenAnalytics={(p) => setActiveAnalyticsProduct(p)}
+                      onOpenReporter={(p) => openFixReporter(p)}
+                    />
+                  </div>
+
+                  {/* Right 3D Floating Live Deal Radar Cards (Desktop) */}
+                  <div className="hidden lg:flex lg:col-span-3 flex-col gap-4">
+                    <div
+                      onClick={() => setHeroAiQuery('Noise cancelling headphones')}
+                      className="float-3d-right p-4 rounded-2xl bg-gradient-to-bl from-[#1E151A]/95 to-[#121217]/95 border border-[#C0C0C8]/30 hover:border-[#FF2A2A] shadow-2xl cursor-pointer group transition-all"
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-sky-400 mb-1.5">
+                        <span>🎧 Audio & Gaming</span>
+                        <span>Tap to Ask →</span>
+                      </div>
+                      <h4 className="font-harmond text-2xl font-bold text-white group-hover:text-sky-400 transition-colors">
+                        Pro Tech & ANC Gear
+                      </h4>
+                      <p className="text-xs text-[#C0C0C8] mt-1">
+                        "Show me noise cancelling headphones & gaming gear deals"
+                      </p>
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-[#FF2A2A] font-bold">
+                        <span>🔥 Lowest 6-Month Price</span>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={openVersusBattle}
+                      className="float-3d-right p-4 rounded-2xl bg-gradient-to-bl from-[#251216]/95 to-[#121217]/95 border border-[#FF2A2A]/50 hover:border-white shadow-2xl cursor-pointer group transition-all"
+                      style={{ animationDelay: '1.5s' }}
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#FF2A2A] mb-1.5">
+                        <span>⚔️ Same-Category Battle</span>
+                        <span>Launch →</span>
+                      </div>
+                      <h4 className="font-harmond text-2xl font-bold text-white">
+                        AI Versus Arena ({versusProducts.length}/2)
+                      </h4>
+                      <p className="text-xs text-[#C0C0C8] mt-1">
+                        Pick any 2 items of the same category to see AI Marks out of 100 & Worth-the-Money verdicts!
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           )}
