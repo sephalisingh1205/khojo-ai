@@ -379,7 +379,7 @@ export default function App() {
                 </span>
               </h1>
               <p className="text-[8px] sm:text-[10px] uppercase tracking-[0.18em] text-[#A2D5AB] mt-0.5">
-                Sage Cream • Mint Jade • Vibrant Teal
+                Developed by <span className="font-bold">Sephali Singh</span>
               </p>
             </div>
           </div>
