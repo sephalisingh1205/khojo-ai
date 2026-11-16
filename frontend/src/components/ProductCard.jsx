@@ -3,10 +3,10 @@ import { Star, ExternalLink, Heart, BarChart2, Sparkles, Wrench, Scale, Check } 
 import { API_BASE_URL } from '../config';
 
 const PLATFORM_BADGES = {
-  'Amazon India': 'bg-[#121215]/90 text-[#E2E8F0] border border-[#C0C0C8]/50',
-  'Flipkart': 'bg-[#121215]/90 text-sky-300 border border-sky-400/40',
-  'Myntra': 'bg-[#121215]/90 text-pink-300 border border-pink-400/40',
-  'Nykaa': 'bg-[#121215]/90 text-rose-300 border border-rose-400/40'
+  'Amazon India': 'bg-[#0E1719]/90 text-[#E5EFC1] border border-[#A2D5AB]/50',
+  'Flipkart': 'bg-[#0E1719]/90 text-[#A2D5AB] border border-[#39AEA9]/50',
+  'Myntra': 'bg-[#0E1719]/90 text-[#E5EFC1] border border-[#557B83]/60',
+  'Nykaa': 'bg-[#0E1719]/90 text-[#A2D5AB] border border-[#A2D5AB]/50'
 };
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
@@ -28,7 +28,7 @@ export default function ProductCard({
 
   const badgeStyle =
     PLATFORM_BADGES[product.platform] ||
-    'bg-[#121215]/90 text-[#C0C0C8] border border-[#C0C0C8]/40';
+    'bg-[#0E1719]/90 text-[#A2D5AB] border border-[#A2D5AB]/40';
 
   const discount =
     product.mrp_inr && product.mrp_inr > product.price_inr
@@ -68,14 +68,14 @@ export default function ProductCard({
       style={tiltStyle}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`rounded-2xl border overflow-hidden flex flex-col justify-between group bg-gradient-to-b from-[#1A1A20] to-[#111115] text-zinc-100 transition-all ${
+      className={`rounded-2xl border overflow-hidden flex flex-col justify-between group bg-gradient-to-b from-[#162427] to-[#0E1719] text-[#E5EFC1] transition-all ${
         isInVersus
-          ? 'border-[#FF2A2A] ring-2 ring-[#FF2A2A]/40 shadow-2xl shadow-[#FF2A2A]/20'
-          : 'border-[#C0C0C8]/20 hover:border-[#FF2A2A]/70 hover:shadow-2xl hover:shadow-[#FF2A2A]/10'
+          ? 'border-[#39AEA9] ring-2 ring-[#39AEA9]/50 shadow-2xl shadow-[#39AEA9]/25'
+          : 'border-[#557B83]/45 hover:border-[#A2D5AB] hover:shadow-2xl hover:shadow-[#39AEA9]/15'
       } ${compact ? 'w-64 shrink-0' : 'w-full'}`}
     >
       <div>
-        <div className={`relative bg-zinc-950 overflow-hidden ${compact ? 'h-36' : 'h-52 sm:h-56'}`}>
+        <div className={`relative bg-[#0A1113] overflow-hidden ${compact ? 'h-36' : 'h-52 sm:h-56'}`}>
           <img
             src={product.image_url || FALLBACK_IMAGE}
             alt={product.name}
@@ -99,13 +99,12 @@ export default function ProductCard({
               if (onOpenAnalytics) onOpenAnalytics(product);
             }}
             title="View Deal Score & 6-Month Price Graph"
-            className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/85 backdrop-blur-md border border-[#C0C0C8]/40 text-[#E2E8F0] text-[10px] font-bold flex items-center gap-1 hover:border-[#FF2A2A] hover:text-[#FF2A2A] transition-all cursor-pointer"
+            className="absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-[#0E1719]/90 backdrop-blur-md border border-[#A2D5AB]/40 text-[#E5EFC1] text-[10px] font-bold flex items-center gap-1 hover:border-[#39AEA9] hover:text-[#A2D5AB] transition-all cursor-pointer"
           >
-            <Sparkles className="w-3 h-3 text-[#FF2A2A]" />
+            <Sparkles className="w-3 h-3 text-[#39AEA9]" />
             Deal Score {dealScore}
           </button>
 
-          {/* Manual "+ Versus" Selection Pill */}
           {onToggleVersus && (
             <button
               onClick={(e) => {
@@ -115,8 +114,8 @@ export default function ProductCard({
               title="Add to Head-to-Head Versus Battle (Same Category Only)"
               className={`absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer backdrop-blur-md border ${
                 isInVersus
-                  ? 'bg-[#FF2A2A] text-white border-[#FF2A2A] shadow-lg shadow-[#FF2A2A]/40'
-                  : 'bg-black/85 text-[#E2E8F0] border-[#C0C0C8]/40 hover:border-[#FF2A2A] hover:text-[#FF2A2A]'
+                  ? 'bg-[#39AEA9] text-[#0E1719] border-[#E5EFC1] shadow-lg shadow-[#39AEA9]/40'
+                  : 'bg-[#0E1719]/90 text-[#E5EFC1] border-[#A2D5AB]/40 hover:border-[#39AEA9] hover:text-[#A2D5AB]'
               }`}
             >
               {isInVersus ? (
@@ -125,7 +124,7 @@ export default function ProductCard({
                 </>
               ) : (
                 <>
-                  <Scale className="w-3 h-3 text-[#FF2A2A]" /> + Versus
+                  <Scale className="w-3 h-3 text-[#39AEA9]" /> + Versus
                 </>
               )}
             </button>
@@ -139,11 +138,11 @@ export default function ProductCard({
                 if (onToggleWishlist) onToggleWishlist();
               }}
               title="Save to Wishlist"
-              className="p-2 rounded-full bg-black/75 border border-white/15 backdrop-blur-md hover:border-[#FF2A2A] hover:scale-110 transition-all cursor-pointer"
+              className="p-2 rounded-full bg-[#0E1719]/80 border border-[#A2D5AB]/30 backdrop-blur-md hover:border-[#39AEA9] hover:scale-110 transition-all cursor-pointer"
             >
               <Heart
                 className={`w-4 h-4 transition-colors ${
-                  isWishlisted ? 'fill-[#FF2A2A] text-[#FF2A2A]' : 'text-zinc-300'
+                  isWishlisted ? 'fill-[#39AEA9] text-[#39AEA9]' : 'text-[#E5EFC1]'
                 }`}
               />
             </button>
@@ -155,7 +154,7 @@ export default function ProductCard({
                   onOpenReporter(product);
                 }}
                 title="Report Broken Link or Wrong Price"
-                className="p-2 rounded-full bg-black/75 border border-white/15 backdrop-blur-md text-zinc-300 hover:text-[#FF2A2A] hover:border-[#FF2A2A] transition-all cursor-pointer"
+                className="p-2 rounded-full bg-[#0E1719]/80 border border-[#A2D5AB]/30 backdrop-blur-md text-[#A2D5AB] hover:text-[#E5EFC1] hover:border-[#39AEA9] transition-all cursor-pointer"
               >
                 <Wrench className="w-3.5 h-3.5" />
               </button>
@@ -164,18 +163,18 @@ export default function ProductCard({
         </div>
 
         <div className={compact ? 'p-3' : 'p-4'}>
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-[#C0C0C8] mb-1">
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-[#A2D5AB] mb-1">
             <span className="truncate max-w-[70%]">{product.brand}</span>
             {product.rating && (
-              <span className="flex items-center gap-1 text-[#E2E8F0] shrink-0">
-                <Star className="w-3 h-3 fill-[#FF2A2A] text-[#FF2A2A]" />
+              <span className="flex items-center gap-1 text-[#E5EFC1] shrink-0">
+                <Star className="w-3 h-3 fill-[#39AEA9] text-[#39AEA9]" />
                 {product.rating}
               </span>
             )}
           </div>
 
           <h3
-            className={`font-harmond font-semibold line-clamp-2 text-white ${
+            className={`font-harmond font-semibold line-clamp-2 text-[#E5EFC1] ${
               compact ? 'text-base leading-snug' : 'text-lg sm:text-xl leading-snug'
             }`}
             title={product.name}
@@ -184,11 +183,11 @@ export default function ProductCard({
           </h3>
 
           {!compact && (
-            <div className="text-[11px] text-zinc-400 mt-1.5 flex items-center justify-between">
-              <span className="text-[#C0C0C8] font-medium">{product.category}</span>
+            <div className="text-[11px] text-[#A2D5AB]/80 mt-1.5 flex items-center justify-between">
+              <span className="text-[#A2D5AB] font-medium">{product.category}</span>
               <button
                 onClick={() => onOpenReporter && onOpenReporter(product)}
-                className="text-[#C0C0C8] hover:text-[#FF2A2A] underline cursor-pointer"
+                className="text-[#A2D5AB] hover:text-[#E5EFC1] underline cursor-pointer"
               >
                 Fix Info
               </button>
@@ -197,20 +196,20 @@ export default function ProductCard({
         </div>
       </div>
 
-      <div className="border-t border-white/10 px-3.5 sm:px-4 py-3 flex flex-col gap-2.5 bg-[#0E0E12]/60">
+      <div className="border-t border-[#557B83]/30 px-3.5 sm:px-4 py-3 flex flex-col gap-2.5 bg-[#0B1214]/80">
         <div className="flex items-baseline justify-between">
           <div className="flex items-baseline gap-2">
-            <span className="font-bold text-base sm:text-lg text-white">
+            <span className="font-bold text-base sm:text-lg text-[#E5EFC1]">
               ₹{Number(product.price_inr).toLocaleString('en-IN')}
             </span>
             {product.mrp_inr && product.mrp_inr > product.price_inr && (
-              <span className="text-xs text-zinc-500 line-through">
+              <span className="text-xs text-[#557B83] line-through">
                 ₹{Number(product.mrp_inr).toLocaleString('en-IN')}
               </span>
             )}
           </div>
           {discount && (
-            <span className="text-[10px] sm:text-[11px] font-bold text-[#FF2A2A] bg-[#FF2A2A]/15 border border-[#FF2A2A]/30 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] sm:text-[11px] font-bold text-[#0E1719] bg-[#A2D5AB] px-2 py-0.5 rounded-full">
               {discount}% OFF
             </span>
           )}
@@ -222,9 +221,9 @@ export default function ProductCard({
               if (onProductInteract) onProductInteract(product);
               if (onOpenAnalytics) onOpenAnalytics(product);
             }}
-            className="py-2 px-2 rounded-xl font-semibold text-xs border border-[#C0C0C8]/30 bg-white/5 text-[#E2E8F0] hover:border-white hover:bg-white/10 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            className="py-2 px-2 rounded-xl font-semibold text-xs border border-[#557B83]/60 bg-[#162427] text-[#E5EFC1] hover:border-[#A2D5AB] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
-            <BarChart2 className="w-3.5 h-3.5 text-[#C0C0C8] shrink-0" />
+            <BarChart2 className="w-3.5 h-3.5 text-[#A2D5AB] shrink-0" />
             <span className="truncate">{compact ? 'Graph' : 'Price Graph'}</span>
           </button>
 
@@ -233,7 +232,7 @@ export default function ProductCard({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => onProductInteract && onProductInteract(product)}
-            className="py-2 px-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#FF2A2A] to-[#D91B1B] text-white hover:brightness-110 transition-all flex items-center justify-center gap-1 shadow-md shadow-[#FF2A2A]/20"
+            className="py-2 px-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] hover:brightness-110 transition-all flex items-center justify-center gap-1 shadow-md shadow-[#39AEA9]/25"
           >
             <span className="truncate">Buy Now</span>
             <ExternalLink className="w-3.5 h-3.5 shrink-0" />

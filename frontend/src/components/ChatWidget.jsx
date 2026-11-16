@@ -1,22 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  X,
   Send,
   Bot,
   User,
   Loader2,
-  Minimize2,
-  Maximize2,
-  Minus,
   RotateCcw,
   Sparkles,
   Mic,
   ShieldCheck,
   Database,
   Zap,
-  Flame,
-  TrendingDown,
-  ShoppingBag
+  Flame
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import ProductCard from './ProductCard';
@@ -37,28 +31,28 @@ const SHOPPING_VIBE_CARDS = [
     title: '🔥 Streetwear & Sneakers',
     subtitle: 'Compare Puma, Nike & Campus kicks under ₹5,000',
     query: 'Sneakers under ₹5000',
-    accent: 'from-[#FF2A2A]/25 to-[#181820]'
+    accent: 'from-[#39AEA9]/30 to-[#162427]'
   },
   {
     badge: 'GLOW ROUTINE',
     title: '✨ Skincare & Serums',
     subtitle: 'Top-rated Nykaa & Amazon face serums & cleansers',
     query: 'Find me a good face serum',
-    accent: 'from-rose-500/20 to-[#181820]'
+    accent: 'from-[#A2D5AB]/25 to-[#162427]'
   },
   {
     badge: 'TECH STEALS',
     title: '🎧 Pro Gaming & Audio',
     subtitle: 'ANC headphones, gaming mice & accessories',
     query: 'Noise cancelling headphones',
-    accent: 'from-sky-500/20 to-[#181820]'
+    accent: 'from-[#557B83]/35 to-[#162427]'
   },
   {
     badge: 'WARDROBE UPGRADE',
     title: '👕 Mens & Womens Fit',
     subtitle: 'U.S. Polo shirts, oversized hoodies & cargos',
     query: 'Show me U.S. Polo shirts',
-    accent: 'from-emerald-500/20 to-[#181820]'
+    accent: 'from-[#E5EFC1]/20 to-[#162427]'
   }
 ];
 
@@ -78,14 +72,14 @@ function formatMessageText(text = '') {
   return parts.map((part, index) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <strong key={index} className="font-bold text-white">
+        <strong key={index} className="font-bold text-[#E5EFC1]">
           {part.slice(2, -2)}
         </strong>
       );
     }
     if (part.startsWith('*') && part.endsWith('*')) {
       return (
-        <em key={index} className="italic text-[#C0C0C8]">
+        <em key={index} className="italic text-[#A2D5AB]">
           {part.slice(1, -1)}
         </em>
       );
@@ -109,7 +103,6 @@ export default function ChatWidget({
   onOpenAnalytics,
   onOpenReporter
 }) {
-  const [windowState, setWindowState] = useState('normal');
   const [input, setInput] = useState('');
   const [websiteHp, setWebsiteHp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -143,7 +136,6 @@ export default function ChatWidget({
     }
   }, [messages, loading]);
 
-  // Listen for clicks from the 3D floating hero cards
   useEffect(() => {
     if (externalQuery && externalQuery.trim()) {
       sendMessage(externalQuery);
@@ -349,40 +341,40 @@ export default function ChatWidget({
   };
 
   const containerClasses = embedded
-    ? 'w-full rounded-2xl sm:rounded-3xl bg-[#131318]/90 backdrop-blur-2xl border border-[#C0C0C8]/30 shadow-[0_25px_70px_rgba(255,42,42,0.16)] overflow-hidden flex flex-col h-[470px] sm:h-[530px] card-3d-shell'
+    ? 'w-full rounded-2xl sm:rounded-3xl bg-[#162427]/90 backdrop-blur-2xl border border-[#A2D5AB]/35 shadow-[0_25px_70px_rgba(57,174,169,0.2)] overflow-hidden flex flex-col h-[470px] sm:h-[530px] card-3d-shell'
     : 'fixed bottom-3 right-3 left-3 sm:left-auto sm:bottom-5 sm:right-5 sm:w-[430px] h-[75vh] sm:h-[560px] z-40';
 
   return (
     <div className={containerClasses}>
-      <div className="w-full h-full flex flex-col overflow-hidden text-[#E2E8F0]">
+      <div className="w-full h-full flex flex-col overflow-hidden text-[#E5EFC1]">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#16161C] via-[#281216] to-[#16161C] border-b border-[#C0C0C8]/20 px-4 sm:px-5 py-3 flex items-center justify-between shrink-0">
+        <div className="bg-gradient-to-r from-[#162427] via-[#20383C] to-[#162427] border-b border-[#A2D5AB]/25 px-4 sm:px-5 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-[#FF2A2A] shrink-0 shadow-md shadow-[#FF2A2A]/30">
+            <div className="relative w-9 h-9 rounded-xl overflow-hidden border border-[#39AEA9] shrink-0 shadow-md shadow-[#39AEA9]/30">
               <img src="/favicon.ico" alt="Khojo AI" className="w-full h-full object-cover" />
-              <span className="absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="absolute bottom-0.5 right-0.5 w-2 h-2 rounded-full bg-[#E5EFC1] animate-ping" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="font-harmond text-xl sm:text-2xl font-bold tracking-wide text-white leading-none">
+                <h4 className="font-harmond text-xl sm:text-2xl font-bold tracking-wide text-[#E5EFC1] leading-none">
                   Khojo AI Shopping Concierge
                 </h4>
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-[#FF2A2A]/20 text-[#FF2A2A] border border-[#FF2A2A]/40">
-                  <Flame className="w-2.5 h-2.5" /> Live Vibe Engine
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-[#39AEA9]/25 text-[#E5EFC1] border border-[#A2D5AB]/40">
+                  <Flame className="w-2.5 h-2.5 text-[#E5EFC1]" /> Live Vibe Engine
                 </span>
               </div>
-              <div className="flex items-center gap-2.5 text-[10px] text-[#C0C0C8] mt-1">
-                <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                  <Zap className="w-3 h-3 fill-emerald-400" />
+              <div className="flex items-center gap-2.5 text-[10px] text-[#A2D5AB] mt-1">
+                <span className="flex items-center gap-1 text-[#E5EFC1] font-semibold">
+                  <Zap className="w-3 h-3 fill-[#39AEA9] text-[#39AEA9]" />
                   Instant Reply
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
-                  <Database className="w-3 h-3 text-[#FF2A2A]" /> 4-Store Scanner
+                  <Database className="w-3 h-3 text-[#39AEA9]" /> 4-Store Scanner
                 </span>
                 <span className="hidden sm:inline">•</span>
                 <span className="hidden sm:flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-[#C0C0C8]" /> Smart Suggestions
+                  <ShieldCheck className="w-3 h-3 text-[#A2D5AB]" /> Smart Suggestions
                 </span>
               </div>
             </div>
@@ -391,7 +383,7 @@ export default function ChatWidget({
           <button
             onClick={clearChat}
             title="Reset Conversation"
-            className="p-2 hover:bg-white/10 rounded-xl text-[#C0C0C8] hover:text-white cursor-pointer"
+            className="p-2 hover:bg-white/10 rounded-xl text-[#A2D5AB] hover:text-[#E5EFC1] cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -400,7 +392,7 @@ export default function ChatWidget({
         {/* Scrollable Message Stream */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 bg-[#0D0D11]/90"
+          className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 bg-[#0E1719]/95"
         >
           {messages.map((msg, idx) => (
             <div
@@ -410,7 +402,7 @@ export default function ChatWidget({
               }`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 text-[#FF2A2A] flex items-center justify-center shrink-0 mt-0.5 shadow-md shadow-[#FF2A2A]/10">
+                <div className="w-8 h-8 rounded-xl bg-[#39AEA9]/20 border border-[#39AEA9]/50 text-[#E5EFC1] flex items-center justify-center shrink-0 mt-0.5 shadow-md">
                   <Bot className="w-4 h-4" />
                 </div>
               )}
@@ -419,32 +411,32 @@ export default function ChatWidget({
                 <div
                   className={`px-4 py-3 rounded-2xl text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
                     msg.role === 'user'
-                      ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white font-semibold rounded-br-none shadow-lg shadow-[#FF2A2A]/25'
-                      : 'bg-[#181820] text-[#E2E8F0] border border-[#C0C0C8]/20 rounded-bl-none'
+                      ? 'bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] font-bold rounded-br-none shadow-lg shadow-[#39AEA9]/25'
+                      : 'bg-[#162427] text-[#E5EFC1] border border-[#557B83]/50 rounded-bl-none'
                   }`}
                 >
                   {formatMessageText(msg.content)}
                 </div>
 
-                {/* Interactive "Shop by Vibe" Bento Cards on Initial Greeting */}
+                {/* Interactive "Shop by Vibe" Bento Cards */}
                 {idx === 0 && messages.length === 1 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 animate-fadeIn">
                     {SHOPPING_VIBE_CARDS.map((card) => (
                       <div
                         key={card.title}
                         onClick={() => sendMessage(card.query)}
-                        className={`p-3.5 rounded-2xl bg-gradient-to-br ${card.accent} border border-[#C0C0C8]/20 hover:border-[#FF2A2A] transition-all cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#FF2A2A]/15`}
+                        className={`p-3.5 rounded-2xl bg-gradient-to-br ${card.accent} border border-[#557B83]/50 hover:border-[#E5EFC1] transition-all cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#39AEA9]/20`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#FF2A2A]">
+                          <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#A2D5AB]">
                             {card.badge}
                           </span>
-                          <Sparkles className="w-3.5 h-3.5 text-[#C0C0C8] group-hover:text-[#FF2A2A] group-hover:rotate-12 transition-transform" />
+                          <Sparkles className="w-3.5 h-3.5 text-[#A2D5AB] group-hover:text-[#E5EFC1] group-hover:rotate-12 transition-transform" />
                         </div>
-                        <h5 className="font-harmond text-lg font-bold text-white group-hover:text-[#FF2A2A] transition-colors">
+                        <h5 className="font-harmond text-lg font-bold text-[#E5EFC1]">
                           {card.title}
                         </h5>
-                        <p className="text-[11px] text-[#C0C0C8] line-clamp-1 mt-0.5">
+                        <p className="text-[11px] text-[#A2D5AB] line-clamp-1 mt-0.5">
                           {card.subtitle}
                         </p>
                       </div>
@@ -454,9 +446,9 @@ export default function ChatWidget({
 
                 {msg.products && msg.products.length > 0 && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[11px] text-[#C0C0C8] px-1">
-                      <span className="flex items-center gap-1.5 font-semibold text-white">
-                        <Sparkles className="w-3.5 h-3.5 text-[#FF2A2A]" />
+                    <div className="flex items-center justify-between text-[11px] text-[#A2D5AB] px-1">
+                      <span className="flex items-center gap-1.5 font-semibold text-[#E5EFC1]">
+                        <Sparkles className="w-3.5 h-3.5 text-[#39AEA9]" />
                         Curated AI Matches ({msg.products.length})
                       </span>
                       <span className="hidden sm:inline">
@@ -489,7 +481,7 @@ export default function ChatWidget({
               </div>
 
               {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-xl bg-[#1C1C24] border border-[#C0C0C8]/30 text-[#C0C0C8] flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-xl bg-[#162427] border border-[#A2D5AB]/40 text-[#E5EFC1] flex items-center justify-center shrink-0 mt-0.5">
                   <User className="w-4 h-4" />
                 </div>
               )}
@@ -497,20 +489,20 @@ export default function ChatWidget({
           ))}
 
           {loading && (
-            <div className="flex items-center gap-2 text-xs text-[#FF2A2A] pl-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
+            <div className="flex items-center gap-2 text-xs text-[#A2D5AB] pl-2">
+              <Loader2 className="w-4 h-4 animate-spin text-[#39AEA9]" />
               <span>Khojo AI is curating the best store deals for your vibe...</span>
             </div>
           )}
         </div>
 
         {/* Quick Prompt Pills */}
-        <div className="px-3.5 py-2 bg-[#14141A] border-t border-[#C0C0C8]/15 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-3.5 py-2 bg-[#121E21] border-t border-[#557B83]/30 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
           {QUICK_PROMPTS.map((item) => (
             <button
               key={item.label}
               onClick={() => sendMessage(item.query)}
-              className="text-[11px] sm:text-xs bg-[#1C1C24] hover:bg-[#FF2A2A] border border-[#C0C0C8]/25 hover:border-[#FF2A2A] text-[#E2E8F0] hover:text-white px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer font-medium"
+              className="text-[11px] sm:text-xs bg-[#162427] hover:bg-[#39AEA9] border border-[#557B83]/50 hover:border-[#E5EFC1] text-[#E5EFC1] hover:text-[#0E1719] px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer font-semibold"
             >
               {item.label}
             </button>
@@ -523,7 +515,7 @@ export default function ChatWidget({
             e.preventDefault();
             sendMessage();
           }}
-          className="p-3 bg-[#121216] border-t border-[#C0C0C8]/20 flex items-center gap-2 shrink-0"
+          className="p-3 bg-[#162427] border-t border-[#557B83]/40 flex items-center gap-2 shrink-0"
         >
           <input
             type="text"
@@ -543,7 +535,7 @@ export default function ChatWidget({
                 ? 'Listening... Speak your shopping vibe!'
                 : 'Tell Khojo AI your vibe ("Sneakers under ₹5000", "Face serum", "COD?")...'
             }
-            className="flex-1 text-xs sm:text-sm bg-[#1A1A22] border border-[#C0C0C8]/30 px-4 py-3 rounded-xl focus:outline-none focus:border-[#FF2A2A] text-white placeholder-zinc-400 min-w-0"
+            className="flex-1 text-xs sm:text-sm bg-[#0E1719] border border-[#557B83]/60 px-4 py-3 rounded-xl focus:outline-none focus:border-[#39AEA9] text-[#E5EFC1] placeholder-[#557B83] min-w-0"
           />
           <button
             type="button"
@@ -551,8 +543,8 @@ export default function ChatWidget({
             title="Voice Input"
             className={`p-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
               isListening
-                ? 'bg-[#FF2A2A] text-white border-[#FF2A2A] animate-pulse'
-                : 'bg-[#1A1A22] border-[#C0C0C8]/25 text-[#C0C0C8] hover:text-white'
+                ? 'bg-[#39AEA9] text-[#0E1719] border-[#E5EFC1] animate-pulse'
+                : 'bg-[#0E1719] border-[#557B83]/60 text-[#A2D5AB] hover:text-[#E5EFC1]'
             }`}
           >
             <Mic className="w-4 h-4" />
@@ -560,7 +552,7 @@ export default function ChatWidget({
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] hover:brightness-110 disabled:opacity-40 text-white px-4 sm:px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-[#FF2A2A]/30 shrink-0"
+            className="bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] hover:brightness-110 disabled:opacity-40 text-[#0E1719] px-4 sm:px-5 py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-[#39AEA9]/30 shrink-0"
           >
             <span className="hidden sm:inline">Ask AI</span>
             <Send className="w-4 h-4" />

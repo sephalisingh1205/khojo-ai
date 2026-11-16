@@ -4,15 +4,18 @@
   :root {
     --font-harmond: 'Cormorant Garamond', Georgia, serif;
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --charcoal-bg: #121215;
-    --moonlit-silver: #C0C0C8;
-    --signal-red: #FF2A2A;
+    --sage-cream: #E5EFC1;
+    --mint-jade: #A2D5AB;
+    --vibrant-teal: #39AEA9;
+    --slate-teal: #557B83;
+    --deep-abyss: #0E1719;
+    --card-abyss: #162427;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #121215;
-    color: #E2E8F0;
+    background-color: #0E1719;
+    color: #E5EFC1;
     overflow-x: hidden;
   }
 
@@ -22,21 +25,52 @@
   }
 }
 
+/* Global Theme Remapping for Modals & Sub-Components (#E5EFC1, #A2D5AB, #39AEA9, #557B83) */
+.bg-\[\#121215\], .bg-\[\#0E0E12\], .bg-\[\#0D0D11\], .bg-\[\#0D0D10\], .bg-\[\#0B0B0E\] {
+  background-color: #0E1719 !important;
+}
+.bg-\[\#141418\], .bg-\[\#141419\], .bg-\[\#16161C\], .bg-\[\#18181E\], .bg-\[\#18181F\], .bg-\[\#181820\], .bg-\[\#1A1A20\], .bg-\[\#1A1A22\], .bg-\[\#1C1C24\] {
+  background-color: #162427 !important;
+}
+.bg-\[\#FF2A2A\] {
+  background-color: #39AEA9 !important;
+  color: #0E1719 !important;
+}
+.text-\[\#FF2A2A\] {
+  color: #39AEA9 !important;
+}
+.text-\[\#C0C0C8\], .text-\[\#E2E8F0\] {
+  color: #A2D5AB !important;
+}
+.border-\[\#FF2A2A\] {
+  border-color: #39AEA9 !important;
+}
+.border-\[\#C0C0C8\]\/20, .border-\[\#C0C0C8\]\/25, .border-\[\#C0C0C8\]\/30, .border-\[\#C0C0C8\]\/40 {
+  border-color: rgba(162, 213, 171, 0.28) !important;
+}
+.from-\[\#FF2A2A\] {
+  --tw-gradient-from: #39AEA9 !important;
+  --tw-gradient-to: #557B83 !important;
+}
+.to-\[\#C81E1E\], .to-\[\#D91B1B\], .to-\[\#B91C1C\] {
+  --tw-gradient-to: #557B83 !important;
+}
+
 /* 3D Depth & Perspective Utilities */
 .card-3d-shell {
   transform-style: preserve-3d;
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.75),
-    0 0 0 1px rgba(192, 192, 200, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 20px 50px rgba(8, 14, 16, 0.8),
+    0 0 0 1px rgba(162, 213, 171, 0.22),
+    inset 0 1px 0 rgba(229, 239, 193, 0.14);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
 }
 
 .card-3d-shell:hover {
   box-shadow:
-    0 26px 65px rgba(255, 42, 42, 0.14),
-    0 0 0 1px rgba(255, 42, 42, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    0 26px 65px rgba(57, 174, 169, 0.22),
+    0 0 0 1px rgba(57, 174, 169, 0.55),
+    inset 0 1px 0 rgba(229, 239, 193, 0.25);
 }
 
 @keyframes fadeIn {
@@ -81,7 +115,6 @@
   animation: float3DReverse 6s ease-in-out infinite;
 }
 
-/* Utility to hide scrollbars on horizontal pill bars */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -90,18 +123,18 @@
   scrollbar-width: none;
 }
 
-/* Custom Charcoal & Signal Red Scrollbar */
+/* Custom Teal & Sage Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #121215;
+  background: #0E1719;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2E2E38;
+  background: #557B83;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF2A2A;
+  background: #39AEA9;
 }

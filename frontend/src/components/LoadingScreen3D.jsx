@@ -5,11 +5,9 @@ export default function LoadingScreen3D({ onComplete }) {
   const [exiting, setExiting] = useState(false);
   const canvasRef = useRef(null);
 
-  // 1. Smooth 1 -> 100% Counter with variable acceleration
   useEffect(() => {
     let current = 1;
     const interval = setInterval(() => {
-      // Accelerate nicely toward 100
       const step = current < 35 ? 2 : current < 80 ? 3 : 2;
       current = Math.min(100, current + step);
       setProgress(current);
@@ -28,7 +26,6 @@ export default function LoadingScreen3D({ onComplete }) {
     return () => clearInterval(interval);
   }, [onComplete]);
 
-  // 2. Full 3D Warp Tunnel & Rotating Gyro-Rings Canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -44,15 +41,13 @@ export default function LoadingScreen3D({ onComplete }) {
     };
     window.addEventListener('resize', handleResize);
 
-    // 3D Warp Stars
     const stars = Array.from({ length: 110 }, (_, i) => ({
       x: (Math.random() - 0.5) * 1600,
       y: (Math.random() - 0.5) * 1000,
       z: Math.random() * 1000 + 50,
-      isRed: i % 3 === 0
+      isTeal: i % 2 === 0
     }));
 
-    // 3D Sphere / Gyro Ring Points
     const ringPoints = [];
     const numLat = 6;
     const numLon = 16;
@@ -65,7 +60,7 @@ export default function LoadingScreen3D({ onComplete }) {
           x: radius * Math.cos(lat) * Math.cos(lon),
           y: radius * Math.sin(lat),
           z: radius * Math.cos(lat) * Math.sin(lon),
-          isRed: (i + j) % 3 === 0
+          isTeal: (i + j) % 2 === 0
         });
       }
     }
@@ -75,7 +70,7 @@ export default function LoadingScreen3D({ onComplete }) {
     let angleZ = 0;
 
     const render = () => {
-      ctx.fillStyle = 'rgba(14, 14, 18, 0.32)';
+      ctx.fillStyle = 'rgba(14, 23, 25, 0.34)';
       ctx.fillRect(0, 0, width, height);
 
       const cx = width / 2;
@@ -85,7 +80,6 @@ export default function LoadingScreen3D({ onComplete }) {
       angleX += 0.011;
       angleZ += 0.007;
 
-      // Warp speed starfield
       stars.forEach((s) => {
         s.z -= 12;
         if (s.z <= 10) {
@@ -101,9 +95,9 @@ export default function LoadingScreen3D({ onComplete }) {
         const px = cx + s.x * prevScale;
         const py = cy + s.y * prevScale;
 
-        ctx.strokeStyle = s.isRed
-          ? `rgba(255, 42, 42, ${Math.min(0.9, scale * 0.45)})`
-          : `rgba(192, 192, 200, ${Math.min(0.75, scale * 0.35)})`;
+        ctx.strokeStyle = s.isTeal
+          ? `rgba(57, 174, 169, ${Math.min(0.9, scale * 0.48)})`
+          : `rgba(229, 239, 193, ${Math.min(0.8, scale * 0.38)})`;
         ctx.lineWidth = Math.max(1, scale * 1.4);
         ctx.beginPath();
         ctx.moveTo(px, py);
@@ -111,15 +105,11 @@ export default function LoadingScreen3D({ onComplete }) {
         ctx.stroke();
       });
 
-      // Project & Draw 3D Gyro-Sphere around the typography
       const projected = ringPoints.map((p) => {
-        // Rotate Y
         let x1 = p.x * Math.cos(angleY) - p.z * Math.sin(angleY);
         let z1 = p.z * Math.cos(angleY) + p.x * Math.sin(angleY);
-        // Rotate X
         let y1 = p.y * Math.cos(angleX) - z1 * Math.sin(angleX);
         let z2 = z1 * Math.cos(angleX) + p.y * Math.sin(angleX);
-        // Rotate Z
         let x2 = x1 * Math.cos(angleZ) - y1 * Math.sin(angleZ);
         let y2 = y1 * Math.cos(angleZ) + x1 * Math.sin(angleZ);
 
@@ -129,22 +119,21 @@ export default function LoadingScreen3D({ onComplete }) {
           x: cx + x2 * scale,
           y: cy + y2 * scale,
           scale,
-          isRed: p.isRed
+          isTeal: p.isTeal
         };
       });
 
-      // Connect nearby 3D gyro vertices
       for (let i = 0; i < projected.length; i++) {
         for (let j = i + 1; j < projected.length; j++) {
           const dx = projected[i].x - projected[j].x;
           const dy = projected[i].y - projected[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < 82) {
-            const alpha = (1 - dist / 82) * 0.25;
+            const alpha = (1 - dist / 82) * 0.28;
             ctx.strokeStyle =
-              projected[i].isRed || projected[j].isRed
-                ? `rgba(255, 42, 42, ${alpha})`
-                : `rgba(192, 192, 200, ${alpha})`;
+              projected[i].isTeal || projected[j].isTeal
+                ? `rgba(57, 174, 169, ${alpha})`
+                : `rgba(162, 213, 171, ${alpha})`;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(projected[i].x, projected[i].y);
@@ -157,7 +146,7 @@ export default function LoadingScreen3D({ onComplete }) {
       projected.forEach((pt) => {
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, Math.max(1.3, pt.scale * 2.1), 0, Math.PI * 2);
-        ctx.fillStyle = pt.isRed ? '#FF2A2A' : '#E2E8F0';
+        ctx.fillStyle = pt.isTeal ? '#39AEA9' : '#E5EFC1';
         ctx.fill();
       });
 
@@ -171,7 +160,6 @@ export default function LoadingScreen3D({ onComplete }) {
     };
   }, []);
 
-  // Dynamic loading status label based on progress
   const statusLabel =
     progress < 30
       ? 'INITIALIZING 3D CONVERSATIONAL CORE...'
@@ -183,18 +171,15 @@ export default function LoadingScreen3D({ onComplete }) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-[#0E0E12] flex flex-col items-center justify-center overflow-hidden select-none transition-all duration-500 ${
+      className={`fixed inset-0 z-50 bg-[#0E1719] flex flex-col items-center justify-center overflow-hidden select-none transition-all duration-500 ${
         exiting ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'
       }`}
       style={{ perspective: '1200px' }}
     >
-      {/* 3D WebGL-Style Warp & Gyro Sphere Canvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-      {/* Ambient Signal Red & Moonlit Silver Radial Glow */}
-      <div className="absolute w-[340px] sm:w-[520px] h-[340px] sm:h-[520px] rounded-full bg-[#FF2A2A]/15 blur-[130px] pointer-events-none" />
+      <div className="absolute w-[340px] sm:w-[520px] h-[340px] sm:h-[520px] rounded-full bg-[#39AEA9]/20 blur-[130px] pointer-events-none" />
 
-      {/* 3D Floating Center Stage */}
       <div
         className="relative z-10 flex flex-col items-center text-center px-4 max-w-3xl w-full"
         style={{
@@ -202,35 +187,31 @@ export default function LoadingScreen3D({ onComplete }) {
           transformStyle: 'preserve-3d'
         }}
       >
-        {/* Top Cyber Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#18181F]/90 border border-[#C0C0C8]/30 text-[10px] sm:text-xs font-bold uppercase tracking-[0.28em] text-[#C0C0C8] mb-5 shadow-lg">
-          <span className="w-2 h-2 rounded-full bg-[#FF2A2A] animate-ping" />
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#162427]/90 border border-[#A2D5AB]/40 text-[10px] sm:text-xs font-bold uppercase tracking-[0.28em] text-[#E5EFC1] mb-5 shadow-lg">
+          <span className="w-2 h-2 rounded-full bg-[#39AEA9] animate-ping" />
           <span>NEXT-GEN AI COMMERCE ENGINE</span>
         </div>
 
-        {/* 3D Extruded Typography: KHOJO AI */}
         <h1
-          className="font-harmond text-6xl sm:text-8xl md:text-9xl font-extrabold tracking-wider leading-none text-white"
+          className="font-harmond text-6xl sm:text-8xl md:text-9xl font-extrabold tracking-wider leading-none text-[#E5EFC1]"
           style={{
             textShadow:
-              '0 4px 0 #272730, 0 8px 0 #18181E, 0 18px 45px rgba(255, 42, 42, 0.45)'
+              '0 4px 0 #162427, 0 8px 0 #0E1719, 0 18px 45px rgba(57, 174, 169, 0.5)'
           }}
         >
           KHOJO{' '}
-          <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
+          <span className="italic bg-gradient-to-r from-[#E5EFC1] via-[#A2D5AB] to-[#39AEA9] bg-clip-text text-transparent">
             AI
           </span>
         </h1>
 
-        {/* Subtitle: where shopping made eazyyy */}
-        <p className="mt-3 sm:mt-4 text-sm sm:text-xl md:text-2xl font-medium tracking-[0.18em] lowercase text-[#E2E8F0]">
+        <p className="mt-3 sm:mt-4 text-sm sm:text-xl md:text-2xl font-medium tracking-[0.18em] lowercase text-[#A2D5AB]">
           where shopping made{' '}
-          <span className="font-harmond italic font-bold text-xl sm:text-3xl text-[#FF2A2A] tracking-widest underline decoration-[#C0C0C8]/40 underline-offset-4">
+          <span className="font-harmond italic font-bold text-xl sm:text-3xl text-[#E5EFC1] tracking-widest underline decoration-[#39AEA9] underline-offset-4">
             eazyyy
           </span>
         </p>
 
-        {/* 3D Digital 1 - 100 Counter + Circular Ring */}
         <div className="mt-8 sm:mt-10 relative flex items-center justify-center">
           <svg className="w-36 h-36 sm:w-44 sm:h-44 -rotate-90" viewBox="0 0 140 140">
             <circle
@@ -238,7 +219,7 @@ export default function LoadingScreen3D({ onComplete }) {
               cy="70"
               r="58"
               fill="none"
-              stroke="rgba(192, 192, 200, 0.14)"
+              stroke="rgba(162, 213, 171, 0.18)"
               strokeWidth="4"
             />
             <circle
@@ -246,7 +227,7 @@ export default function LoadingScreen3D({ onComplete }) {
               cy="70"
               r="58"
               fill="none"
-              stroke="#FF2A2A"
+              stroke="#39AEA9"
               strokeWidth="5"
               strokeLinecap="round"
               strokeDasharray="364"
@@ -257,29 +238,27 @@ export default function LoadingScreen3D({ onComplete }) {
 
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div className="flex items-baseline">
-              <span className="font-harmond text-5xl sm:text-6xl font-extrabold text-white tracking-tight">
+              <span className="font-harmond text-5xl sm:text-6xl font-extrabold text-[#E5EFC1] tracking-tight">
                 {progress}
               </span>
-              <span className="text-lg sm:text-xl font-bold text-[#FF2A2A] ml-0.5">
+              <span className="text-lg sm:text-xl font-bold text-[#39AEA9] ml-0.5">
                 %
               </span>
             </div>
-            <span className="text-[9px] uppercase tracking-[0.25em] text-[#C0C0C8] mt-0.5">
+            <span className="text-[9px] uppercase tracking-[0.25em] text-[#A2D5AB] mt-0.5">
               LOADED
             </span>
           </div>
         </div>
 
-        {/* Sleek Horizontal 3D Progress Bar */}
-        <div className="w-64 sm:w-80 h-1.5 rounded-full bg-[#1C1C24] border border-[#C0C0C8]/20 overflow-hidden mt-6 p-[1px]">
+        <div className="w-64 sm:w-80 h-1.5 rounded-full bg-[#162427] border border-[#A2D5AB]/30 overflow-hidden mt-6 p-[1px]">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#C0C0C8] via-[#FF2A2A] to-white transition-all duration-75 shadow-[0_0_15px_#FF2A2A]"
+            className="h-full rounded-full bg-gradient-to-r from-[#557B83] via-[#39AEA9] to-[#E5EFC1] transition-all duration-75 shadow-[0_0_15px_#39AEA9]"
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        {/* Dynamic Telemetry Status */}
-        <p className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.22em] text-[#C0C0C8] mt-3">
+        <p className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.22em] text-[#A2D5AB] mt-3">
           {statusLabel}
         </p>
       </div>

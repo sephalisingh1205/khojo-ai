@@ -64,14 +64,13 @@ export default function App() {
   const [sortBy, setSortBy] = useState('recommended');
   const [isListening, setIsListening] = useState(false);
 
-  const [themeMode] = useState('charcoal');
+  const [themeMode] = useState('teal_sage');
 
   const [activeAnalyticsProduct, setActiveAnalyticsProduct] = useState(null);
   const [reporterTargetProduct, setReporterTargetProduct] = useState(null);
   const [isReporterOpen, setIsReporterOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
-  // User-Controlled Versus State & Category Mismatch Popup
   const [isVersusOpen, setIsVersusOpen] = useState(false);
   const [versusProducts, setVersusProducts] = useState([]);
   const [versusMismatchAlert, setVersusMismatchAlert] = useState('');
@@ -123,7 +122,6 @@ export default function App() {
     });
   };
 
-  // Manual User-Controlled Versus Selection with Same-Category Validation
   const handleToggleVersusProduct = (product) => {
     if (!product) return;
     handleRecordInteraction({ type: 'click', product });
@@ -311,18 +309,18 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#121215] text-[#E2E8F0]">
+    <div className="min-h-screen flex flex-col bg-[#0E1719] text-[#E5EFC1]">
       {/* Category Mismatch Popup Modal */}
       {versusMismatchAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl bg-[#161215] border-2 border-[#FF2A2A] p-6 text-center space-y-4 shadow-2xl shadow-[#FF2A2A]/30">
-            <div className="w-14 h-14 rounded-2xl bg-[#FF2A2A]/20 border border-[#FF2A2A] text-[#FF2A2A] flex items-center justify-center mx-auto">
+          <div className="w-full max-w-md rounded-3xl bg-[#162427] border-2 border-[#39AEA9] p-6 text-center space-y-4 shadow-2xl shadow-[#39AEA9]/30">
+            <div className="w-14 h-14 rounded-2xl bg-[#39AEA9]/20 border border-[#39AEA9] text-[#E5EFC1] flex items-center justify-center mx-auto">
               <AlertTriangle className="w-8 h-8 animate-bounce" />
             </div>
-            <h3 className="font-harmond text-3xl font-bold text-white">
+            <h3 className="font-harmond text-3xl font-bold text-[#E5EFC1]">
               Put Items of the Same Category!
             </h3>
-            <p className="text-xs sm:text-sm text-[#E2E8F0] leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#A2D5AB] leading-relaxed">
               {versusMismatchAlert}
             </p>
             <div className="flex gap-2 pt-2">
@@ -331,13 +329,13 @@ export default function App() {
                   setVersusProducts([]);
                   setVersusMismatchAlert('');
                 }}
-                className="flex-1 py-2.5 rounded-xl border border-[#C0C0C8]/30 text-xs font-semibold text-[#C0C0C8] hover:text-white cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-[#A2D5AB]/40 text-xs font-semibold text-[#A2D5AB] hover:text-[#E5EFC1] cursor-pointer"
               >
                 Reset Versus
               </button>
               <button
                 onClick={() => setVersusMismatchAlert('')}
-                className="flex-1 py-2.5 rounded-xl bg-[#FF2A2A] text-white font-bold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-[#FF2A2A]/25"
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39AEA9]/25"
               >
                 OK, Got It
               </button>
@@ -348,14 +346,14 @@ export default function App() {
 
       {/* Top Email Confirmation Toast */}
       {authToast && (
-        <div className="fixed top-16 right-4 z-50 bg-[#141419] border border-emerald-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs animate-fadeIn">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="fixed top-16 right-4 z-50 bg-[#162427] border border-[#A2D5AB] text-[#E5EFC1] px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-[#39AEA9] shrink-0" />
           <span>{authToast}</span>
         </div>
       )}
 
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#121215]/90 border-b border-[#C0C0C8]/20">
+      {/* Sticky Header (#0E1719 + #557B83 + #39AEA9 + #A2D5AB + #E5EFC1) */}
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0E1719]/90 border-b border-[#557B83]/40">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
           <div
             className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer group"
@@ -364,8 +362,8 @@ export default function App() {
               setMobileMenuOpen(false);
             }}
           >
-            <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-2xl p-[1.5px] bg-gradient-to-tr from-[#FF2A2A] via-[#C0C0C8] to-[#FF2A2A] shadow-lg shadow-[#FF2A2A]/20 group-hover:scale-105 transition-transform shrink-0">
-              <div className="w-full h-full rounded-[14px] overflow-hidden bg-[#121215]">
+            <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-2xl p-[1.5px] bg-gradient-to-tr from-[#39AEA9] via-[#A2D5AB] to-[#E5EFC1] shadow-lg shadow-[#39AEA9]/25 group-hover:scale-105 transition-transform shrink-0">
+              <div className="w-full h-full rounded-[14px] overflow-hidden bg-[#0E1719]">
                 <img
                   src="/favicon.ico"
                   alt="Khojo AI"
@@ -374,20 +372,20 @@ export default function App() {
               </div>
             </div>
             <div>
-              <h1 className="font-harmond text-xl sm:text-3xl font-bold tracking-wide leading-none text-white">
+              <h1 className="font-harmond text-xl sm:text-3xl font-bold tracking-wide leading-none text-[#E5EFC1]">
                 Khojo{' '}
-                <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
+                <span className="italic bg-gradient-to-r from-[#E5EFC1] via-[#A2D5AB] to-[#39AEA9] bg-clip-text text-transparent">
                   AI
                 </span>
               </h1>
-              <p className="text-[8px] sm:text-[10px] uppercase tracking-[0.18em] text-[#C0C0C8] mt-0.5">
-                Charcoal • Moonlit Silver • Signal Red
+              <p className="text-[8px] sm:text-[10px] uppercase tracking-[0.18em] text-[#A2D5AB] mt-0.5">
+                Sage Cream • Mint Jade • Vibrant Teal
               </p>
             </div>
           </div>
 
           {/* Center Navigation Tabs */}
-          <div className="hidden md:flex items-center p-1 rounded-2xl bg-[#1A1A20] border border-[#C0C0C8]/20">
+          <div className="hidden md:flex items-center p-1 rounded-2xl bg-[#162427] border border-[#557B83]/50">
             {[
               { id: 'home', label: 'AI Hub & Storefront', icon: Sparkles },
               { id: 'chat', label: 'Full-Screen Chatbot', icon: Bot },
@@ -401,8 +399,8 @@ export default function App() {
                   onClick={() => setActivePage(nav.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     active
-                      ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-md shadow-[#FF2A2A]/25'
-                      : 'text-[#C0C0C8] hover:text-white'
+                      ? 'bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] shadow-md shadow-[#39AEA9]/25'
+                      : 'text-[#A2D5AB] hover:text-[#E5EFC1]'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -416,15 +414,15 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={openVersusBattle}
-              className="relative hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#C0C0C8]/30 bg-white/5 hover:border-[#FF2A2A] text-[#E2E8F0] text-xs font-semibold cursor-pointer"
+              className="relative hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#557B83]/60 bg-[#162427] hover:border-[#A2D5AB] text-[#E5EFC1] text-xs font-semibold cursor-pointer"
             >
-              <Scale className="w-3.5 h-3.5 text-[#FF2A2A]" />
+              <Scale className="w-3.5 h-3.5 text-[#39AEA9]" />
               <span>Versus ({versusProducts.length}/2)</span>
             </button>
 
             <button
               onClick={() => openFixReporter(null)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FF2A2A]/15 border border-[#FF2A2A]/40 hover:bg-[#FF2A2A] text-white text-xs font-bold transition-all cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#39AEA9]/20 border border-[#39AEA9]/50 hover:bg-[#39AEA9] text-[#E5EFC1] hover:text-[#0E1719] text-xs font-bold transition-all cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5" />
               <span>Report Fix</span>
@@ -433,9 +431,9 @@ export default function App() {
             {user ? (
               <button
                 onClick={() => setActivePage('profile')}
-                className="px-2.5 sm:px-3 py-2 rounded-xl border border-[#C0C0C8]/30 bg-[#1A1A22] hover:border-[#FF2A2A] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                className="px-2.5 sm:px-3 py-2 rounded-xl border border-[#A2D5AB]/40 bg-[#162427] hover:border-[#39AEA9] text-[#E5EFC1] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <span className="w-5 h-5 rounded-full bg-[#FF2A2A] text-white flex items-center justify-center text-[10px]">
+                <span className="w-5 h-5 rounded-full bg-[#39AEA9] text-[#0E1719] font-extrabold flex items-center justify-center text-[10px]">
                   {user.name[0]}
                 </span>
                 <span className="hidden sm:inline">{user.name}</span>
@@ -443,10 +441,10 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setActivePage('login')}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer ${
                   activePage === 'login'
-                    ? 'bg-white text-black'
-                    : 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-[#FF2A2A]/20'
+                    ? 'bg-[#E5EFC1] text-[#0E1719]'
+                    : 'bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] shadow-[#39AEA9]/25'
                 }`}
               >
                 <User className="w-3.5 h-3.5" />
@@ -458,15 +456,15 @@ export default function App() {
               onClick={() =>
                 setActivePage(activePage === 'wishlist' ? 'home' : 'wishlist')
               }
-              className="relative p-2 sm:p-2.5 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-[#E2E8F0] hover:border-[#FF2A2A] cursor-pointer"
+              className="relative p-2 sm:p-2.5 rounded-xl border border-[#557B83]/60 bg-[#162427] text-[#E5EFC1] hover:border-[#39AEA9] cursor-pointer"
             >
               <Heart
                 className={`w-4 h-4 ${
-                  activePage === 'wishlist' ? 'fill-[#FF2A2A] text-[#FF2A2A]' : ''
+                  activePage === 'wishlist' ? 'fill-[#39AEA9] text-[#39AEA9]' : ''
                 }`}
               />
               {wishlist.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#FF2A2A] text-white text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 bg-[#39AEA9] text-[#0E1719] text-[10px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center">
                   {wishlist.length}
                 </span>
               )}
@@ -474,7 +472,7 @@ export default function App() {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-white cursor-pointer"
+              className="md:hidden p-2 rounded-xl border border-[#557B83]/60 bg-[#162427] text-[#E5EFC1] cursor-pointer"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -482,7 +480,7 @@ export default function App() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-[#C0C0C8]/20 bg-[#141418] px-4 py-3 space-y-2.5 animate-fadeIn">
+          <div className="md:hidden border-t border-[#557B83]/40 bg-[#162427] px-4 py-3 space-y-2.5 animate-fadeIn">
             <div className="grid grid-cols-4 gap-1.5">
               {[
                 { id: 'home', label: 'AI Hub' },
@@ -498,8 +496,8 @@ export default function App() {
                   }}
                   className={`py-2 rounded-xl text-xs font-bold border ${
                     activePage === t.id
-                      ? 'bg-[#FF2A2A] text-white border-[#FF2A2A]'
-                      : 'bg-zinc-900 text-[#C0C0C8] border-white/10'
+                      ? 'bg-[#39AEA9] text-[#0E1719] border-[#E5EFC1]'
+                      : 'bg-[#0E1719] text-[#A2D5AB] border-[#557B83]/40'
                   }`}
                 >
                   {t.label}
@@ -567,20 +565,20 @@ export default function App() {
       ) : (
         <>
           {activePage === 'home' && (
-            <section className="relative overflow-hidden border-b border-[#C0C0C8]/20 py-6 sm:py-10 px-3 sm:px-6 bg-gradient-to-b from-[#17171F] via-[#111116] to-[#0B0B0F]">
+            <section className="relative overflow-hidden border-b border-[#557B83]/40 py-6 sm:py-10 px-3 sm:px-6 bg-gradient-to-b from-[#162427] via-[#111C1F] to-[#0E1719]">
               <Interactive3DBackground />
 
               <div className="relative z-10 max-w-7xl mx-auto space-y-5">
                 {/* Top Heading & Interactive Vibe Switcher Pills */}
                 <div className="text-center space-y-3 max-w-3xl mx-auto">
-                  <div className="inline-flex items-center gap-2 bg-[#1A1A24]/90 border border-[#FF2A2A]/40 text-[#E2E8F0] text-[10px] sm:text-xs font-bold px-4 py-1.5 rounded-full tracking-widest uppercase shadow-lg shadow-[#FF2A2A]/15">
-                    <span className="w-2 h-2 rounded-full bg-[#FF2A2A] animate-ping" />
+                  <div className="inline-flex items-center gap-2 bg-[#162427]/90 border border-[#39AEA9]/60 text-[#E5EFC1] text-[10px] sm:text-xs font-bold px-4 py-1.5 rounded-full tracking-widest uppercase shadow-lg shadow-[#39AEA9]/20">
+                    <span className="w-2 h-2 rounded-full bg-[#39AEA9] animate-ping" />
                     <span>3D Interactive AI Shopping Concierge • Live Price Radar</span>
                   </div>
 
-                  <h2 className="font-harmond text-4xl sm:text-6xl font-bold tracking-tight leading-none text-white">
+                  <h2 className="font-harmond text-4xl sm:text-6xl font-bold tracking-tight leading-none text-[#E5EFC1]">
                     Ask Khojo AI.{' '}
-                    <span className="italic bg-gradient-to-r from-[#C0C0C8] via-white to-[#FF2A2A] bg-clip-text text-transparent">
+                    <span className="italic bg-gradient-to-r from-[#E5EFC1] via-[#A2D5AB] to-[#39AEA9] bg-clip-text text-transparent">
                       Shop Smarter.
                     </span>
                   </h2>
@@ -596,7 +594,7 @@ export default function App() {
                       <button
                         key={vibe.label}
                         onClick={() => setHeroAiQuery(vibe.q)}
-                        className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#181822]/90 hover:bg-[#FF2A2A] text-[#E2E8F0] hover:text-white border border-[#C0C0C8]/25 hover:border-[#FF2A2A] transition-all cursor-pointer shadow-md hover:scale-105"
+                        className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#162427]/90 hover:bg-[#39AEA9] text-[#E5EFC1] hover:text-[#0E1719] border border-[#A2D5AB]/35 hover:border-[#E5EFC1] transition-all cursor-pointer shadow-md hover:scale-105"
                       >
                         {vibe.label}
                       </button>
@@ -604,25 +602,25 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 3-Column 3D Interactive Arena: Left Floating Vibe Orbs + Center AI Hub + Right Live Steals */}
+                {/* 3-Column 3D Interactive Arena */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-                  {/* Left 3D Floating Shopping Vibe Cards (Desktop) */}
+                  {/* Left 3D Floating Shopping Vibe Cards */}
                   <div className="hidden lg:flex lg:col-span-3 flex-col gap-4">
                     <div
                       onClick={() => setHeroAiQuery('Sneakers under ₹5000')}
-                      className="float-3d-left p-4 rounded-2xl bg-gradient-to-br from-[#1E151A]/95 to-[#121217]/95 border border-[#FF2A2A]/40 hover:border-[#FF2A2A] shadow-2xl cursor-pointer group transition-all"
+                      className="float-3d-left p-4 rounded-2xl bg-gradient-to-br from-[#1B2E32]/95 to-[#0E1719]/95 border border-[#39AEA9]/50 hover:border-[#E5EFC1] shadow-2xl cursor-pointer group transition-all"
                     >
-                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#FF2A2A] mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#39AEA9] mb-1.5">
                         <span>⚡ Live AI Vibe</span>
                         <span>Tap to Ask →</span>
                       </div>
-                      <h4 className="font-harmond text-2xl font-bold text-white group-hover:text-[#FF2A2A] transition-colors">
+                      <h4 className="font-harmond text-2xl font-bold text-[#E5EFC1] group-hover:text-[#A2D5AB] transition-colors">
                         Sneakerhead Radar
                       </h4>
-                      <p className="text-xs text-[#C0C0C8] mt-1">
+                      <p className="text-xs text-[#A2D5AB] mt-1">
                         "Find me top-rated running & casual sneakers under ₹5,000"
                       </p>
-                      <div className="mt-3 flex items-center gap-2 text-[10px] text-emerald-400 font-semibold">
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-[#E5EFC1] font-semibold">
                         <span>★ 4.7 Avg Rating</span>
                         <span>•</span>
                         <span>Up to 45% Off</span>
@@ -631,17 +629,17 @@ export default function App() {
 
                     <div
                       onClick={() => setHeroAiQuery('Find me a good face serum')}
-                      className="float-3d-left p-4 rounded-2xl bg-gradient-to-br from-[#181822]/95 to-[#121217]/95 border border-[#C0C0C8]/30 hover:border-[#FF2A2A] shadow-2xl cursor-pointer group transition-all"
+                      className="float-3d-left p-4 rounded-2xl bg-gradient-to-br from-[#162427]/95 to-[#0E1719]/95 border border-[#A2D5AB]/40 hover:border-[#E5EFC1] shadow-2xl cursor-pointer group transition-all"
                       style={{ animationDelay: '1.2s' }}
                     >
-                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-rose-400 mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#A2D5AB] mb-1.5">
                         <span>✨ Beauty Concierge</span>
                         <span>Tap to Ask →</span>
                       </div>
-                      <h4 className="font-harmond text-2xl font-bold text-white group-hover:text-rose-400 transition-colors">
+                      <h4 className="font-harmond text-2xl font-bold text-[#E5EFC1] group-hover:text-[#A2D5AB] transition-colors">
                         Skincare & Glow Vault
                       </h4>
-                      <p className="text-xs text-[#C0C0C8] mt-1">
+                      <p className="text-xs text-[#A2D5AB] mt-1">
                         "Compare Nykaa & Amazon prices on niacinamide & vitamin C serums"
                       </p>
                     </div>
@@ -666,40 +664,40 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Right 3D Floating Live Deal Radar Cards (Desktop) */}
+                  {/* Right 3D Floating Live Deal Radar Cards */}
                   <div className="hidden lg:flex lg:col-span-3 flex-col gap-4">
                     <div
                       onClick={() => setHeroAiQuery('Noise cancelling headphones')}
-                      className="float-3d-right p-4 rounded-2xl bg-gradient-to-bl from-[#1E151A]/95 to-[#121217]/95 border border-[#C0C0C8]/30 hover:border-[#FF2A2A] shadow-2xl cursor-pointer group transition-all"
+                      className="float-3d-right p-4 rounded-2xl bg-gradient-to-bl from-[#1B2E32]/95 to-[#0E1719]/95 border border-[#A2D5AB]/40 hover:border-[#E5EFC1] shadow-2xl cursor-pointer group transition-all"
                     >
-                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-sky-400 mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#A2D5AB] mb-1.5">
                         <span>🎧 Audio & Gaming</span>
                         <span>Tap to Ask →</span>
                       </div>
-                      <h4 className="font-harmond text-2xl font-bold text-white group-hover:text-sky-400 transition-colors">
+                      <h4 className="font-harmond text-2xl font-bold text-[#E5EFC1] group-hover:text-[#39AEA9] transition-colors">
                         Pro Tech & ANC Gear
                       </h4>
-                      <p className="text-xs text-[#C0C0C8] mt-1">
+                      <p className="text-xs text-[#A2D5AB] mt-1">
                         "Show me noise cancelling headphones & gaming gear deals"
                       </p>
-                      <div className="mt-3 flex items-center gap-2 text-[10px] text-[#FF2A2A] font-bold">
+                      <div className="mt-3 flex items-center gap-2 text-[10px] text-[#E5EFC1] font-bold">
                         <span>🔥 Lowest 6-Month Price</span>
                       </div>
                     </div>
 
                     <div
                       onClick={openVersusBattle}
-                      className="float-3d-right p-4 rounded-2xl bg-gradient-to-bl from-[#251216]/95 to-[#121217]/95 border border-[#FF2A2A]/50 hover:border-white shadow-2xl cursor-pointer group transition-all"
+                      className="float-3d-right p-4 rounded-2xl bg-gradient-to-bl from-[#223B40]/95 to-[#0E1719]/95 border border-[#39AEA9]/60 hover:border-[#E5EFC1] shadow-2xl cursor-pointer group transition-all"
                       style={{ animationDelay: '1.5s' }}
                     >
-                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#FF2A2A] mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#E5EFC1] mb-1.5">
                         <span>⚔️ Same-Category Battle</span>
                         <span>Launch →</span>
                       </div>
-                      <h4 className="font-harmond text-2xl font-bold text-white">
+                      <h4 className="font-harmond text-2xl font-bold text-[#E5EFC1]">
                         AI Versus Arena ({versusProducts.length}/2)
                       </h4>
-                      <p className="text-xs text-[#C0C0C8] mt-1">
+                      <p className="text-xs text-[#A2D5AB] mt-1">
                         Pick any 2 items of the same category to see AI Marks out of 100 & Worth-the-Money verdicts!
                       </p>
                     </div>
@@ -711,23 +709,23 @@ export default function App() {
 
           {/* Product Catalog Grid */}
           <main className="max-w-7xl mx-auto w-full px-3.5 sm:px-6 py-7 flex-1 space-y-5 animate-fadeIn">
-            <div className="p-4 rounded-2xl bg-[#18181E] border border-[#C0C0C8]/20 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-[#162427] border border-[#557B83]/50 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="font-harmond text-2xl font-bold text-white">
+                <h3 className="font-harmond text-2xl font-bold text-[#E5EFC1]">
                   {activePage === 'wishlist'
                     ? 'My Saved Wishlist'
                     : user
                     ? `Curated Deals for ${user.name}`
                     : 'Live Marketplace Catalog'}
                 </h3>
-                <p className="text-xs text-[#C0C0C8]">
+                <p className="text-xs text-[#A2D5AB]">
                   Tap <strong>"+ Versus"</strong> on any two items of the same category to run an AI Head-to-Head Battle
                 </p>
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="flex items-center flex-1 sm:w-72 px-3 py-2 rounded-xl bg-[#101014] border border-[#C0C0C8]/25">
-                  <Search className="w-4 h-4 text-[#C0C0C8] mr-2 shrink-0" />
+                <div className="flex items-center flex-1 sm:w-72 px-3 py-2 rounded-xl bg-[#0E1719] border border-[#557B83]/60">
+                  <Search className="w-4 h-4 text-[#A2D5AB] mr-2 shrink-0" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -743,12 +741,12 @@ export default function App() {
                     placeholder={
                       isListening ? 'Listening...' : 'Filter products or brands...'
                     }
-                    className="w-full bg-transparent text-xs text-white focus:outline-none"
+                    className="w-full bg-transparent text-xs text-[#E5EFC1] placeholder-[#557B83] focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={startVoiceSearch}
-                    className="text-[#FF2A2A] hover:scale-110 cursor-pointer ml-1"
+                    className="text-[#39AEA9] hover:scale-110 cursor-pointer ml-1"
                   >
                     <Mic className="w-4 h-4" />
                   </button>
@@ -756,7 +754,7 @@ export default function App() {
 
                 <button
                   onClick={openVersusBattle}
-                  className="px-3.5 py-2 rounded-xl bg-[#FF2A2A] text-white text-xs font-bold uppercase tracking-wider cursor-pointer shrink-0 shadow-md shadow-[#FF2A2A]/20 flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] text-xs font-extrabold uppercase tracking-wider cursor-pointer shrink-0 shadow-md shadow-[#39AEA9]/25 flex items-center gap-1.5"
                 >
                   <Scale className="w-3.5 h-3.5" />
                   <span>Versus ({versusProducts.length}/2)</span>
@@ -776,8 +774,8 @@ export default function App() {
                     }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
                       selectedCategory === cat
-                        ? 'bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white shadow-md shadow-[#FF2A2A]/25'
-                        : 'bg-[#1A1A20] text-[#C0C0C8] border border-[#C0C0C8]/20 hover:border-white hover:text-white'
+                        ? 'bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] shadow-md shadow-[#39AEA9]/25'
+                        : 'bg-[#162427] text-[#A2D5AB] border border-[#557B83]/50 hover:border-[#E5EFC1] hover:text-[#E5EFC1]'
                     }`}
                   >
                     {cat}
@@ -786,12 +784,12 @@ export default function App() {
               </div>
 
               <div className="flex items-center justify-end gap-2 text-xs">
-                <SlidersHorizontal className="w-4 h-4 text-[#FF2A2A]" />
-                <span className="text-[#C0C0C8]">Sort:</span>
+                <SlidersHorizontal className="w-4 h-4 text-[#39AEA9]" />
+                <span className="text-[#A2D5AB]">Sort:</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-[#C0C0C8]/25 bg-[#1A1A20] text-white text-xs font-semibold focus:outline-none focus:border-[#FF2A2A]"
+                  className="px-3 py-2 rounded-xl border border-[#557B83]/60 bg-[#162427] text-[#E5EFC1] text-xs font-semibold focus:outline-none focus:border-[#39AEA9]"
                 >
                   <option value="recommended">Recommended for You</option>
                   <option value="price_asc">Price: Low to High</option>
@@ -803,14 +801,14 @@ export default function App() {
 
             {/* Product Cards */}
             {loading && activePage !== 'wishlist' ? (
-              <div className="py-24 flex flex-col items-center justify-center text-[#FF2A2A] gap-3">
+              <div className="py-24 flex flex-col items-center justify-center text-[#39AEA9] gap-3">
                 <Loader2 className="w-9 h-9 animate-spin" />
-                <p className="text-xs uppercase tracking-widest text-[#C0C0C8]">
+                <p className="text-xs uppercase tracking-widest text-[#A2D5AB]">
                   Loading Live Inventory...
                 </p>
               </div>
             ) : displayedProducts.length === 0 ? (
-              <div className="py-20 text-center text-[#C0C0C8] text-sm space-y-4">
+              <div className="py-20 text-center text-[#A2D5AB] text-sm space-y-4">
                 <p className="max-w-md mx-auto">
                   No local items matched "{searchQuery}". Want Khojo AI to fetch it live from Amazon, Flipkart, Myntra & Nykaa?
                 </p>
@@ -819,7 +817,7 @@ export default function App() {
                     <button
                       onClick={handleLiveWebDiscovery}
                       disabled={fetchingLive}
-                      className="px-5 py-2.5 rounded-xl bg-[#FF2A2A] text-white text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] text-xs font-extrabold uppercase tracking-wider cursor-pointer flex items-center gap-2"
                     >
                       {fetchingLive ? (
                         <>
@@ -833,7 +831,7 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="px-4 py-2.5 rounded-xl border border-[#C0C0C8]/30 text-[#C0C0C8] text-xs font-bold uppercase cursor-pointer"
+                      className="px-4 py-2.5 rounded-xl border border-[#A2D5AB]/40 text-[#A2D5AB] text-xs font-bold uppercase cursor-pointer"
                     >
                       Clear
                     </button>
@@ -865,16 +863,16 @@ export default function App() {
 
       {/* Floating User-Controlled Versus Dock */}
       {versusProducts.length > 0 && !isVersusOpen && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-xl rounded-2xl bg-[#14141A]/95 backdrop-blur-xl border border-[#FF2A2A] p-3 shadow-2xl shadow-black flex items-center justify-between gap-3 animate-fadeIn">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-xl rounded-2xl bg-[#162427]/95 backdrop-blur-xl border border-[#39AEA9] p-3 shadow-2xl shadow-black flex items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="p-2 rounded-xl bg-[#FF2A2A]/20 text-[#FF2A2A] shrink-0">
+            <span className="p-2 rounded-xl bg-[#39AEA9]/20 text-[#E5EFC1] shrink-0">
               <Scale className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF2A2A] block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#A2D5AB] block">
                 Versus Arena ({versusProducts[0].category}) • {versusProducts.length}/2 Selected
               </span>
-              <p className="text-xs text-white truncate">
+              <p className="text-xs text-[#E5EFC1] truncate">
                 {versusProducts.map((p) => p.name).join(' vs. ')}
                 {versusProducts.length === 1 &&
                   ` — Pick 1 more ${versusProducts[0].category} item!`}
@@ -885,13 +883,13 @@ export default function App() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setVersusProducts([])}
-              className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] text-[#C0C0C8] cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] text-[#A2D5AB] cursor-pointer"
             >
               Clear
             </button>
             <button
               onClick={() => setIsVersusOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FF2A2A] to-[#C81E1E] text-white font-bold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-[#FF2A2A]/30"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#39AEA9] to-[#A2D5AB] text-[#0E1719] font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39AEA9]/30"
             >
               {versusProducts.length === 2 ? 'Compare Now ⚡' : 'Pick 2nd Item'}
             </button>
@@ -900,41 +898,41 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-[#C0C0C8]/20 py-8 px-4 text-xs bg-[#0B0B0E] text-[#C0C0C8]">
+      <footer className="border-t border-[#557B83]/40 py-8 px-4 text-xs bg-[#0A1113] text-[#A2D5AB]">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src="/favicon.ico" alt="Logo" className="w-5 h-5 rounded-md" />
-            <span className="font-harmond text-lg text-white font-bold">
+            <span className="font-harmond text-lg text-[#E5EFC1] font-bold">
               Khojo AI
             </span>
             <span>© 2026 • Conversational AI & Price Intelligence Hub</span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold">
-            <button onClick={() => setActivePage('home')} className="hover:text-white cursor-pointer">
+            <button onClick={() => setActivePage('home')} className="hover:text-[#E5EFC1] cursor-pointer">
               AI Hub
             </button>
-            <button onClick={() => setActivePage('login')} className="hover:text-white cursor-pointer">
+            <button onClick={() => setActivePage('login')} className="hover:text-[#E5EFC1] cursor-pointer">
               Sign In Page
             </button>
-            <button onClick={() => setActivePage('profile')} className="hover:text-white cursor-pointer">
+            <button onClick={() => setActivePage('profile')} className="hover:text-[#E5EFC1] cursor-pointer">
               My Account
             </button>
-            <button onClick={() => setActivePage('privacy')} className="hover:text-white cursor-pointer">
+            <button onClick={() => setActivePage('privacy')} className="hover:text-[#E5EFC1] cursor-pointer">
               Privacy Policy
             </button>
-            <button onClick={() => setActivePage('terms')} className="hover:text-white cursor-pointer">
+            <button onClick={() => setActivePage('terms')} className="hover:text-[#E5EFC1] cursor-pointer">
               Terms
             </button>
             <button
               onClick={() => openFixReporter(null)}
-              className="text-[#FF2A2A] hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[#39AEA9] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5" /> Report Fix
             </button>
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="text-[#C0C0C8] hover:text-white flex items-center gap-1 cursor-pointer"
+              className="text-[#A2D5AB] hover:text-[#E5EFC1] flex items-center gap-1 cursor-pointer"
             >
               <Lock className="w-3.5 h-3.5" /> Secret Admin
             </button>

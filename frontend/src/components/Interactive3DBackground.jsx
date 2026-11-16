@@ -28,8 +28,8 @@ export default function Interactive3DBackground() {
       const rect = canvas.getBoundingClientRect();
       mouseX = e.clientX - rect.left;
       mouseY = e.clientY - rect.top;
-      targetRotY = ((mouseX / width) - 0.5) * 1.6;
-      targetRotX = ((mouseY / height) - 0.5) * 1.2;
+      targetRotY = (mouseX / width - 0.5) * 1.6;
+      targetRotX = (mouseY / height - 0.5) * 1.2;
     };
     window.addEventListener('mousemove', handleMouseMove);
 
@@ -45,7 +45,7 @@ export default function Interactive3DBackground() {
           x: (majorR + minorR * Math.cos(v)) * Math.cos(u),
           y: (majorR + minorR * Math.cos(v)) * Math.sin(u),
           z: minorR * Math.sin(v),
-          isRed: (i + j) % 3 === 0
+          isTeal: (i + j) % 2 === 0
         });
       }
     }
@@ -57,7 +57,7 @@ export default function Interactive3DBackground() {
       y: (Math.random() - 0.5) * 580,
       z: Math.random() * 500 + 60,
       vz: -(Math.random() * 1.4 + 0.4),
-      isRed: i % 3 === 0,
+      isTeal: i % 2 === 0,
       tag: i % 5 === 0 ? labels[i % labels.length] : null
     }));
 
@@ -91,25 +91,25 @@ export default function Interactive3DBackground() {
       const cx = width / 2;
       const cy = height / 2;
 
-      // 1. Dynamic Mouse-Following Signal Red & Silver Spotlight
+      // 1. Dynamic Mouse-Following #39AEA9 & #A2D5AB Spotlight
       const spotGrad = ctx.createRadialGradient(
         mouseX,
         mouseY,
         10,
         mouseX,
         mouseY,
-        360
+        380
       );
-      spotGrad.addColorStop(0, 'rgba(255, 42, 42, 0.16)');
-      spotGrad.addColorStop(0.5, 'rgba(192, 192, 200, 0.05)');
-      spotGrad.addColorStop(1, 'rgba(18, 18, 21, 0)');
+      spotGrad.addColorStop(0, 'rgba(57, 174, 169, 0.22)');
+      spotGrad.addColorStop(0.5, 'rgba(162, 213, 171, 0.08)');
+      spotGrad.addColorStop(1, 'rgba(14, 23, 25, 0)');
       ctx.fillStyle = spotGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // 2. 3D Moving Perspective Horizon Grid
+      // 2. 3D Moving Perspective Horizon Grid (#39AEA9 & #557B83)
       gridOffset = (gridOffset + 0.6) % 40;
       const horizonY = height * 0.68;
-      ctx.strokeStyle = 'rgba(255, 42, 42, 0.12)';
+      ctx.strokeStyle = 'rgba(57, 174, 169, 0.16)';
       ctx.lineWidth = 1;
 
       for (let i = -12; i <= 12; i++) {
@@ -120,9 +120,11 @@ export default function Interactive3DBackground() {
       }
 
       for (let y = horizonY; y < height; y += 26) {
-        const drawY = y + (gridOffset * ((y - horizonY) / (height - horizonY)));
+        const drawY = y + gridOffset * ((y - horizonY) / (height - horizonY));
         if (drawY < height) {
-          ctx.strokeStyle = `rgba(192, 192, 200, ${((drawY - horizonY) / (height - horizonY)) * 0.18})`;
+          ctx.strokeStyle = `rgba(162, 213, 171, ${
+            ((drawY - horizonY) / (height - horizonY)) * 0.22
+          })`;
           ctx.beginPath();
           ctx.moveTo(0, drawY);
           ctx.lineTo(width, drawY);
@@ -141,9 +143,9 @@ export default function Interactive3DBackground() {
         const dy = projRing[i].y - next.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < 95) {
-          ctx.strokeStyle = projRing[i].isRed
-            ? 'rgba(255, 42, 42, 0.22)'
-            : 'rgba(192, 192, 200, 0.16)';
+          ctx.strokeStyle = projRing[i].isTeal
+            ? 'rgba(57, 174, 169, 0.28)'
+            : 'rgba(162, 213, 171, 0.2)';
           ctx.lineWidth = 1.1;
           ctx.beginPath();
           ctx.moveTo(projRing[i].x, projRing[i].y);
@@ -152,7 +154,7 @@ export default function Interactive3DBackground() {
         }
       }
 
-      // 4. Render Floating 3D Price & Deal Nodes Moving Toward User
+      // 4. Render Floating 3D Price & Deal Nodes (#E5EFC1 & #39AEA9)
       particles.forEach((p) => {
         p.z += p.vz;
         if (p.z < 60) {
@@ -164,16 +166,16 @@ export default function Interactive3DBackground() {
 
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, Math.max(1.5, pt.scale * 2.5), 0, Math.PI * 2);
-        ctx.fillStyle = p.isRed
-          ? 'rgba(255, 42, 42, 0.85)'
-          : 'rgba(226, 232, 240, 0.75)';
+        ctx.fillStyle = p.isTeal
+          ? 'rgba(57, 174, 169, 0.9)'
+          : 'rgba(229, 239, 193, 0.85)';
         ctx.fill();
 
         if (p.tag && pt.scale > 0.75) {
           ctx.font = `bold ${Math.round(pt.scale * 10)}px Plus Jakarta Sans, sans-serif`;
-          ctx.fillStyle = p.isRed
-            ? 'rgba(255, 80, 80, 0.75)'
-            : 'rgba(192, 192, 200, 0.65)';
+          ctx.fillStyle = p.isTeal
+            ? 'rgba(162, 213, 171, 0.85)'
+            : 'rgba(229, 239, 193, 0.8)';
           ctx.fillText(p.tag, pt.x + 6, pt.y + 3);
         }
       });
